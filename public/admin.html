@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MyTV · Admin Panel</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236d5cff'/%3E%3Crect x='22' y='36' width='56' height='34' rx='6' fill='none' stroke='white' stroke-width='6'/%3E%3Cpath d='M40 70v8h20v-8' fill='none' stroke='white' stroke-width='6'/%3E%3Ccircle cx='50' cy='53' r='9' fill='%2322d3ee'/%3E%3C/svg%3E" />
+<style>
+:root{
+  --bg:#070a14;--bg2:#0c1222;--card:rgba(255,255,255,.05);--line:rgba(255,255,255,.10);
+  --text:#e9eefc;--muted:#8b95b0;--accent:#6d5cff;--accent2:#22d3ee;--pink:#f43f8e;--green:#22c55e;--amber:#f5b23a;--red:#ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Bengali",sans-serif;
+  background:radial-gradient(1200px 700px at 85% -10%,#171a3a 0%,#070a14 55%);
+  color:var(--text);min-height:100vh;
+}
+a{color:var(--accent2)}
+button{font-family:inherit}
+code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:5px;font-size:12px}
+input,textarea{
+  background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--text);
+  border-radius:11px;padding:10px 13px;font-size:14px;outline:none;width:100%;
+}
+input:focus,textarea:focus{border-color:rgba(124,107,255,.6);box-shadow:0 0 0 3px rgba(109,92,255,.15)}
+textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;resize:vertical}
+.btn{
+  cursor:pointer;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--text);
+  padding:9px 15px;font-size:13.5px;font-weight:600;transition:.16s;display:inline-flex;gap:7px;align-items:center;justify-content:center;
+}
+.btn:hover{background:rgba(255,255,255,.1)}
+.btn.primary{background:linear-gradient(135deg,#6d5cff,#3f8cff);border:none;box-shadow:0 6px 18px rgba(109,92,255,.35)}
+.btn.danger{color:#fda4af}.btn.danger:hover{background:rgba(244,63,148,.12)}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:9px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.hidden{display:none!important}
+.muted{color:var(--muted)} .small{font-size:12px}
+.err{color:#fca5c5}.ok{color:#86efac}.warn{color:#fcd34d}
+
+/* topbar */
+.topbar{display:flex;align-items:center;gap:14px;padding:13px clamp(12px,3vw,26px);
+  background:rgba(7,10,20,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px}
+.brand .tag{font-size:10.5px;background:linear-gradient(135deg,#6d5cff,#f43f8e);padding:3px 9px;border-radius:999px;letter-spacing:.5px}
+.nav{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+.nav button{padding:8px 15px;border-radius:10px;border:1px solid transparent;background:none;color:var(--muted);cursor:pointer;font-size:13.5px;font-weight:600}
+.nav button:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.nav button.active{color:#fff;background:linear-gradient(135deg,#6d5cff,#3f8cff);box-shadow:0 4px 14px rgba(109,92,255,.3)}
+.nav .logout{color:#fda4af!important}
+
+main{padding:22px clamp(12px,3vw,26px) 60px;max-width:1200px;margin:0 auto}
+.page{animation:up .22s ease}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.page h2{margin-bottom:4px;font-size:20px}
+.page .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+
+/* login */
+.login-wrap{min-height:100vh;display:grid;place-items:center;padding:20px}
+.login-card{width:min(380px,100%);background:linear-gradient(180deg,#151b38,#0a0e20);border:1px solid var(--line);
+  border-radius:22px;padding:30px 26px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.login-card .logo{font-size:40px;text-align:center;margin-bottom:8px}
+.login-card h1{text-align:center;font-size:20px}
+.login-card p{text-align:center;color:var(--muted);font-size:12.5px;margin:6px 0 18px}
+.login-card form{display:flex;flex-direction:column;gap:11px}
+.login-hint{margin-top:14px;font-size:11.5px;color:var(--muted);border:1px dashed var(--line);border-radius:10px;padding:9px 11px;line-height:1.6}
+
+/* dashboard */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;position:relative;overflow:hidden}
+.stat .num{font-size:34px;font-weight:800;margin-top:4px;letter-spacing:-.5px}
+.stat .lbl{font-size:12.5px;color:var(--muted)}
+.stat.live{border-color:rgba(244,63,148,.45);background:linear-gradient(180deg,rgba(244,63,148,.10),rgba(244,63,148,.02))}
+.stat.live .num{color:#ff8ab5}
+.stat .pulse-dot{width:9px;height:9px;border-radius:50%;background:var(--pink);display:inline-block;margin-right:8px;animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:18px}
+.panel h3{font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.rowline{display:flex;justify-content:space-between;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(255,255,255,.05);font-size:13.5px;align-items:center;flex-wrap:wrap}
+.rowline:last-child{border-bottom:none}
+.rowline .rname{font-weight:600;min-width:0;word-break:break-word}
+
+/* sources */
+.src-item{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;padding:13px 15px;margin-bottom:10px}
+.src-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.src-name{font-weight:700;font-size:14px;flex:1;min-width:140px}
+.chip{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;letter-spacing:.4px}
+.chip.on{background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.35)}
+.chip.off{background:rgba(100,116,139,.15);color:var(--muted);border:1px solid var(--line)}
+.chip.bad{background:rgba(244,63,148,.13);color:#fda4af;border:1px solid rgba(244,63,148,.35)}
+.src-url{margin-top:7px;font-size:11.5px;color:var(--muted);word-break:break-all}
+.src-actions{margin-top:10px;display:flex;gap:7px;flex-wrap:wrap}
+.add-form{background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.18);border-radius:14px;padding:16px;margin-top:14px}
+.add-form h4{font-size:13.5px;margin-bottom:10px}
+.f-row{display:flex;gap:9px;margin-bottom:9px;flex-wrap:wrap}
+.f-row>*{flex:1;min-width:200px}
+.f-row .btn{flex:none}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;color:var(--muted);font-weight:600;padding:7px 8px;border-bottom:1px solid var(--line);font-size:12px}
+td{padding:8px;border-bottom:1px solid rgba(255,255,255,.05)}
+tr:last-child td{border-bottom:none}
+.bar-holder{background:rgba(255,255,255,.08);border-radius:99px;height:8px;overflow:hidden;min-width:90px}
+.bar{height:100%;background:linear-gradient(90deg,#f43f8e,#6d5cff);border-radius:99px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1c2345;border:1px solid rgba(124,107,255,.5);
+  padding:11px 18px;border-radius:13px;font-size:13.5px;font-weight:600;z-index:90;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:.25s;max-width:90vw;text-align:center}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:rot .8s linear infinite;vertical-align:-3px;margin-right:7px}
+@keyframes rot{to{transform:rotate(360deg)}}
+.banner{background:rgba(245,178,58,.12);border:1px solid rgba(245,178,58,.4);color:#fde68a;border-radius:13px;padding:11px 15px;font-size:13px;margin-bottom:16px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(3,5,12,.7);backdrop-filter:blur(5px);display:grid;place-items:center;z-index:60;padding:14px}
+.modal{width:min(560px,100%);background:#121834;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 24px 70px rgba(0,0,0,.6);max-height:90vh;overflow:auto}
+.modal h3{margin-bottom:12px}
+.mb10{margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <div class="logo">🛡️</div>
+    <h1>MyTV Admin Panel</h1>
+    <p>শুধুমাত্র অ্যাডমিনের জন্য — পাসওয়ার্ড দিয়ে প্রবেশ করুন</p>
+    <form id="loginForm">
+      <input type="password" id="loginPass" placeholder="Admin password" autocomplete="current-password" required />
+      <button class="btn primary" type="submit" id="loginBtn">Login →</button>
+    </form>
+    <div class="err small" id="loginErr" style="text-align:center;margin-top:6px"></div>
+    <div class="login-hint">💡 <b>ডিফল্ট পাসওয়ার্ড:</b> <code>admin123</code><br/>
+      ঢোকার পর <b>Settings</b> ট্যাব থেকে পাসওয়ার্ড বদলে নিন।<br/>
+      <span id="passNote"></span></div>
+    <p style="margin-top:14px"><a href="/" target="_blank">← ইউজার টিভি পেজে যান</a></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appWrap" class="hidden">
+  <div class="topbar">
+    <div class="brand">🛡️ MyTV <span class="tag">ADMIN</span></div>
+    <nav class="nav">
+      <button data-tab="dash" class="active">📊 Dashboard</button>
+      <button data-tab="sources">📡 Sources</button>
+      <button data-tab="settings">⚙️ Settings</button>
+      <a class="btn sm" href="/" target="_blank" style="text-decoration:none">📺 User TV</a>
+      <button class="logout" id="logoutBtn">🚪 Logout</button>
+    </nav>
+  </div>
+
+  <main>
+    <div id="dashPage" class="page">
+      <h2>📊 লাইভ ড্যাশবোর্ড</h2>
+      <div class="sub" id="dashSub">এখন কে কে লাইভ দেখছে — প্রতি ১০ সেকেন্ডে অটো আপডেট</div>
+
+      <div class="banner hidden" id="defPassBanner">⚠️ আপনি এখনো <b>ডিফল্ট পাসওয়ার্ড</b> ব্যবহার করছেন! পাবলিক লিংকে শেয়ার করার আগে <b>Settings → পাসওয়ার্ড বদলান</b>।</div>
+
+      <div class="stat-grid">
+        <div class="stat live"><span class="pulse-dot"></span><span class="lbl">এখন লাইভ দেখছে</span><div class="num" id="statLive">0</div></div>
+        <div class="stat"><span class="lbl">মোট চ্যানেল</span><div class="num" id="statCh">0</div></div>
+        <div class="stat"><span class="lbl">চালু সোর্স</span><div class="num" id="statSrcOn">0</div></div>
+        <div class="stat"><span class="lbl">সমস্যায় সোর্স</span><div class="num" id="statSrcBad">0</div></div>
+      </div>
+
+      <div class="panel">
+        <h3>👁️ এখন যেসব চ্যানেল দেখা হচ্ছে</h3>
+        <div id="liveTableWrap"><p class="muted small">কেউ লাইভ দেখছে না…</p></div>
+      </div>
+
+      <div class="panel">
+        <h3>📋 সোর্স অনুযায়ী দর্শক</h3>
+        <div id="srcViewWrap"><p class="muted small">—</p></div>
+      </div>
+
+      <div class="panel">
+        <h3>🛰️ সোর্স অবস্থা ও চ্যানেল সংখ্যা</h3>
+        <div id="chStatusWrap"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary sm" id="refreshListBtn">🔄 রিফ্রেশ / নতুন করে তালিকা আনা</button>
+          <button class="btn sm" id="quickSrcBtn">📡 Sources ম্যানেজ করুন</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="sourcesPage" class="page hidden">
+      <h2>📡 Sources (প্লেলিস্ট ম্যানেজ)</h2>
+      <div class="sub">যোগ/বদল/অক্ষম/মুছে ফেলা — শুধু অ্যাডমিন পারবে। ইউজার শুধু দেখবে।</div>
+      <div id="srcList"></div>
+      <div class="add-form">
+        <h4>➕ নতুন প্লেলিস্ট যোগ করুন</h4>
+        <div class="f-row">
+          <input id="addName" type="text" placeholder="নাম (যেমন: আমার প্লেলিস্ট)" />
+        </div>
+        <div class="f-row">
+          <input id="addUrl" type="url" placeholder="M3U URL — https://example.com/list.m3u" />
+          <button class="btn primary" id="addUrlBtn">Add URL</button>
+        </div>
+        <div class="f-row" style="align-items:center">
+          <textarea id="addRaw" rows="4" placeholder="…বা সরাসরি M3U টেক্সট পেস্ট করুন (raw)"></textarea>
+        </div>
+        <button class="btn" id="addRawBtn">Add Text (raw) Playlist</button>
+      </div>
+    </div>
+
+    <div id="settingsPage" class="page hidden">
+      <h2>⚙️ সেটিংস</h2>
+      <div class="sub">পাসওয়ার্ড বদল, ও পাবলিক অ্যাক্সেস তথ্য</div>
+
+      <div class="panel">
+        <h3>🔑 অ্যাডমিন পাসওয়ার্ড বদলান</h3>
+        <div class="f-row"><input type="password" id="curPass" placeholder="বর্তমান পাসওয়ার্ড" /></div>
+        <div class="f-row"><input type="password" id="newPass" placeholder="নতুন পাসওয়ার্ড (মিন ৪ অক্ষর)" /></div>
+        <div class="f-row"><input type="password" id="conPass" placeholder="নতুন পাসওয়ার্ড আবার" /></div>
+        <button class="btn primary" id="chgPassBtn">পাসওয়ার্ড বদলান</button>
+        <div class="small muted" id="passMsg" style="margin-top:8px"></div>
+      </div>
+
+      <div class="panel">
+        <h3>🌍 লোকাল নেটওয়ার্কের বাইরে (ইন্টারনেটে) ফ্রি দেখানো</h3>
+        <p class="small muted mb10">আপনার কম্পিউটারে সার্ভার চলছে — নিচের যেকোনো একটা চালালে একটা <b>ফ্রি পাবলিক লিংক</b> পাবেন যেটা যেকোনো জায়গা থেকে খুলবে:</p>
+        <p class="small mb10"><b>১) Cloudflare (সবচেয়ে নির্ভরযোগ্য, ফ্রি):</b> খুলুন <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/" target="_blank">cloudflared ডাউনলোড</a> → <code>cloudflared tunnel --url http://localhost:8080</code></p>
+        <p class="small mb10"><b>২) localtunnel (Node থাকলেই — সহজতম):</b> <code>npx -y localtunnel --port 8080</code></p>
+        <p class="small"><b>৩) Render ফ্রি হোস্টিং:</b> বিস্তারিত <code>README.md</code>-তে আছে।</p>
+        <p class="small muted" style="margin-top:10px;border-top:1px solid var(--line);padding-top:9px">⚠️ পাবলিক লিংকে দিলে সবাই ঢুকতে পারবে দেখতে — তাই <b>অবশ্যই পাসওয়ার্ড বদলে নিন</b> আর ইউজাররা কোনো সেটিং দেখবে না (শুধু টিভি পেজ)।</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<!-- EDIT SOURCE MODAL -->
+<div class="modal-backdrop hidden" id="editModal">
+  <div class="modal">
+    <h3>✏️ সোর্স এডিট</h3>
+    <div class="f-row"><input type="text" id="editName" placeholder="নাম" /></div>
+    <div class="f-row"><input type="url" id="editUrl" placeholder="M3U URL" /></div>
+    <div class="mb10"><textarea id="editRaw" rows="4" placeholder="raw M3U টেক্সট (type raw হলে)"></textarea></div>
+    <div style="display:flex;gap:9px;justify-content:flex-end">
+      <button class="btn" id="editCancel">বাতিল</button>
+      <button class="btn primary" id="editSave">সেভ</button>
+    </div>
+    <div class="err small" id="editErr" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  const $=(s)=>document.querySelector(s);
+  const TOK_KEY='mytv.admin.token';
+  function token(){ try{return sessionStorage.getItem(TOK_KEY)||''}catch(e){return ''} }
+  function setTok(t){ try{ if(t) sessionStorage.setItem(TOK_KEY,t); else sessionStorage.removeItem(TOK_KEY);}catch(e){} }
+  let tmr=null;
+
+  async function api(p,opts={}){
+    const h=Object.assign({'content-type':'application/json'},opts.headers||{});
+    const t=token(); if(t) h['authorization']='Bearer '+t;
+    const r=await fetch(p,Object.assign({},opts,{headers:h}));
+    let j=null; try{j=await r.json()}catch(e){}
+    if(r.status===401 && j && j.error==='Admin only'){ toast('সেশন শেষ — আবার লগইন করুন'); logout(); }
+    return j||{ok:false};
+  }
+  function toast(m,ms){ const t=$('#toast'); t.textContent=m; t.classList.remove('hidden'); clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.add('hidden'),ms||3000); }
+  function logout(){ setTok(null); $('#appWrap').classList.add('hidden'); $('#loginWrap').classList.remove('hidden'); }
+
+  /* ---------- boot: check session ---------- */
+  (async function init(){
+    const st=await api('/api/admin/status',{method:'GET'});
+    if(st && st.admin){ showApp(); } else { showLogin(st); }
+  })();
+
+  function showLogin(st){
+    $('#loginWrap').classList.remove('hidden');
+    if(st && st.defaultPassword) $('#passNote').textContent='(এখনো ডিফল্ট পাসওয়ার্ড আছে — ঢুকে বদলে নিন)';
+  }
+  function showApp(){
+    $('#loginWrap').classList.add('hidden');
+    $('#appWrap').classList.remove('hidden');
+    switchTab('dash');
+  }
+
+  $('#loginForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    $('#loginErr').textContent='';
+    const btn=$('#loginBtn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>Checking…';
+    const j=await api('/api/admin/login',{method:'POST',body:JSON.stringify({password:$('#loginPass').value})});
+    btn.disabled=false; btn.textContent='Login →';
+    if(j && j.token){ setTok(j.token); toast('✅ সফল লগইন!'); showApp(); }
+    else $('#loginErr').textContent='❌ '+((j&&j.error)||'ভুল পাসওয়ার্ড');
+  });
+  $('#logoutBtn').addEventListener('click', async ()=>{ await api('/api/admin/logout',{method:'POST',body:'{}'}); logout(); });
+
+  /* ---------- tabs ---------- */
+  const tabs={dash:$('#dashPage'),sources:$('#sourcesPage'),settings:$('#settingsPage')};
+  function switchTab(name){
+    for(const k in tabs) tabs[k].classList.toggle('hidden', k!==name);
+    document.querySelectorAll('.nav [data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+    if(name==='dash'){ loadDashboard(); tmr=setInterval(loadDashboard,10000); }
+    else clearInterval(tmr);
+    if(name==='sources') loadSources();
+    if(name==='settings') checkDefPass();
+  }
+  document.querySelectorAll('.nav [data-tab]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
+  $('#quickSrcBtn').addEventListener('click',()=>switchTab('sources'));
+
+  /* ---------- dashboard ---------- */
+  async function loadDashboard(){
+    try{
+      const st=await api('/api/stats',{method:'GET'});
+      const ch=await fetch('/api/channels').then(r=>r.json()).catch(()=>null);
+      if(st && st.ok){
+        $('#statLive').textContent=st.live.total;
+        $('#dashSub').innerHTML='এখন কে কে লাইভ দেখছে — <span class="muted small">'+ (st.server?('সার্ভার চালু '+Math.floor(st.server.uptimeSec/60)+' মিনিট'):'') +'</span> · প্রতি ১০ সেকেন্ডে অটো-আপডেট';
+        renderLiveTable(st.live);
+        renderSrcView(st.live);
+      }
+      if(ch && ch.ok){
+        $('#statCh').textContent=ch.channels.length;
+        const srcs=ch.sources||[];
+        $('#statSrcOn').textContent=srcs.filter(s=>s.reachable).length;
+        $('#statSrcBad').textContent=srcs.filter(s=>!s.reachable).length;
+        renderChStatus(srcs);
+      }
+    }catch(e){}
+  }
+  function renderLiveTable(live){
+    const w=$('#liveTableWrap');
+    if(!live.byChannel.length){ w.innerHTML='<p class="muted small">👀 কেউ এখনো লাইভ দেখছে না — ইউজার টিভি পেজে একটা চ্যানেল খুললেই এখানে দেখা যাবে।</p>'; return; }
+    const max=live.byChannel[0].viewers;
+    w.innerHTML='<table><thead><tr><th>চ্যানেল</th><th style="width:40%">দর্শক</th><th>সংখ্যা</th></tr></thead><tbody>'+
+      live.byChannel.map(r=>'<tr><td>'+esc(r.channel)+'</td><td><div class="bar-holder"><div class="bar" style="width:'+Math.max(6,Math.round(r.viewers/max*100))+'%"></div></div></td><td><b>'+r.viewers+'</b></td></tr>').join('')+
+      '</tbody></table>';
+  }
+  function renderSrcView(live){
+    const w=$('#srcViewWrap');
+    if(!live.bySource.length){ w.innerHTML='<p class="muted small">—</p>'; return; }
+    w.innerHTML='<table><thead><tr><th>সোর্স</th><th>দর্শক</th></tr></thead><tbody>'+
+      live.bySource.map(r=>'<tr><td>'+esc(r.source)+'</td><td><b>'+r.viewers+'</b></td></tr>').join('')+'</tbody></table>';
+  }
+  function renderChStatus(srcs){
+    const w=$('#chStatusWrap');
+    if(!srcs.length){ w.innerHTML='<p class="muted small">কোনো সোর্স নেই।</p>'; return; }
+    w.innerHTML=srcs.map(s=>'<div class="rowline"><span class="rname">'+esc(s.name)+'</span><span>'+
+      (s.reachable?'<span class="chip on">OK · '+s.count+' চ্যানেল</span>':'<span class="chip bad">✗ '+esc(s.reason||'প্রবেশ করা যাচ্ছে না')+'</span>')+'</span></div>').join('');
+  }
+  $('#refreshListBtn').addEventListener('click', async ()=>{
+    const b=$('#refreshListBtn'); b.disabled=true; b.innerHTML='<span class="spin"></span>তালিকা আনা হচ্ছে…';
+    // force cache refresh by fetching channels after waiting for parse (server caches 10 min; disable cache not exposed—refresh reloads anyway)
+    await fetch('/api/channels',{cache:'no-store'}).then(r=>r.json());
+    await loadDashboard();
+    b.disabled=false; b.textContent='🔄 রিফ্রেশ / নতুন করে তালিকা আনা';
+    toast('✅ সোর্সগুলো আবার লোড হয়েছে');
+  });
+
+  /* ---------- sources page ---------- */
+  async function loadSources(){
+    const j=await api('/api/source',{method:'GET'});
+    const w=$('#srcList');
+    if(!j.ok){ w.innerHTML='<p class="err">লোড করা যায়নি</p>'; return; }
+    if(!j.sources.length){ w.innerHTML='<p class="muted">কোনো সোর্স নেই — নিচে যোগ করুন।</p>'; return; }
+    w.innerHTML=j.sources.map(s=>{
+      const st=s.enabled?('<span class="chip on">চালু</span>')
+        :('<span class="chip off">অক্ষম</span>');
+      const bd=s.builtin?'<span class="chip">বিল্ট-ইন</span>':'';
+      return '<div class="src-item" data-id="'+esc(s.id)+'">'+
+        '<div class="src-top"><span class="src-name">'+esc(s.name)+'</span>'+st+bd+
+        '<span class="chip">'+esc(s.type==='raw'?'raw':'URL')+'</span></div>'+
+        (s.url?'<div class="src-url">'+esc(s.url)+'</div>':'')+
+        '<div class="src-actions">'+
+          '<button class="btn sm act-toggle">'+(s.enabled?'⏸ অক্ষম করো':'▶️ চালু করো')+'</button>'+
+          '<button class="btn sm act-edit">✏️ এডিট</button>'+
+          '<button class="btn sm danger act-del">🗑 মুছুন</button>'+
+        '</div></div>';
+    }).join('');
+    w.querySelectorAll('.act-toggle').forEach(b=>b.addEventListener('click',async()=>{
+      const id=b.closest('.src-item').dataset.id;
+      const src=j.sources.find(s=>s.id===id);
+      const r=await api('/api/source',{method:'POST',body:JSON.stringify({action:'toggle',id,enabled:!src.enabled})});
+      if(r.ok){ toast(src.enabled?'সোর্স অক্ষম করা হলো':'সোর্স চালু হলো'); loadSources(); }
+    }));
+    w.querySelectorAll('.act-del').forEach(b=>b.addEventListener('click',async()=>{
+      const id=b.closest('.src-item').dataset.id;
+      if(!confirm('এই সোর্সটা মুছে ফেলবেন?')) return;
+      const r=await api('/api/source',{method:'POST',body:JSON.stringify({action:'delete',id})});
+      if(r.ok){ toast('মুছে ফেলা হলো'); loadSources(); }
+    }));
+    w.querySelectorAll('.act-edit').forEach(b=>b.addEventListener('click',()=>{
+      const id=b.closest('.src-item').dataset.id;
+      const src=j.sources.find(s=>s.id===id);
+      openEdit(src);
+    }));
+  }
+
+  let editingId=null;
+  function openEdit(src){
+    editingId=src.id;
+    $('#editName').value=src.name||'';
+    $('#editUrl').value=src.url||'';
+    $('#editRaw').value='';
+    $('#editRaw').disabled = src.builtin;
+    $('#editErr').textContent= src.builtin?'⚠️ বিল্ট-ইন ডেমো সোর্স — কেবল নাম বদলানো যাবে।':'';
+    $('#editModal').classList.remove('hidden');
+  }
+  $('#editCancel').addEventListener('click',()=>$('#editModal').classList.add('hidden'));
+  $('#editModal').addEventListener('click',(e)=>{ if(e.target===$('#editModal')) $('#editModal').classList.add('hidden'); });
+  $('#editSave').addEventListener('click',async()=>{
+    const body={action:'update',id:editingId,name:$('#editName').value};
+    if($('#editUrl').value.trim()) body.url=$('#editUrl').value.trim();
+    if($('#editRaw').value.trim()) body.raw=$('#editRaw').value;
+    const r=await api('/api/source',{method:'POST',body:JSON.stringify(body)});
+    if(r.ok){ $('#editModal').classList.add('hidden'); toast('✅ সেভ হয়েছে'); loadSources(); }
+    else $('#editErr').textContent='❌ '+(r.error||'ব্যর্থ');
+  });
+
+  async function addSource(payload,label){
+    const r=await api('/api/source',{method:'POST',body:JSON.stringify(payload)});
+    if(r.ok){ toast(label+' ✅'); loadSources(); }
+    else toast('❌ '+((r&&r.error)||'ব্যর্থ'));
+  }
+  $('#addUrlBtn').addEventListener('click',()=>{
+    const url=$('#addUrl').value.trim(); const name=$('#addName').value.trim();
+    if(!url){ toast('URL দিন'); return; }
+    addSource({name:name||'New playlist',url},'প্লেলিস্ট যোগ হয়েছে');
+    $('#addUrl').value=''; $('#addName').value='';
+  });
+  $('#addRawBtn').addEventListener('click',()=>{
+    const raw=$('#addRaw').value.trim(); const name=$('#addName').value.trim();
+    if(!raw){ toast('M3U টেক্সট দিন'); return; }
+    addSource({name:name||'Pasted playlist',raw},'প্লেলিস্ট যোগ হয়েছে');
+    $('#addRaw').value=''; $('#addName').value='';
+  });
+
+  /* ---------- settings ---------- */
+  async function checkDefPass(){
+    const st=await api('/api/admin/status',{method:'GET'});
+    $('#defPassBanner').classList.toggle('hidden',!(st&&st.defaultPassword));
+  }
+  $('#chgPassBtn').addEventListener('click',async()=>{
+    const msg=$('#passMsg'); msg.textContent=''; msg.className='small muted';
+    const cur=$('#curPass').value,nw=$('#newPass').value,co=$('#conPass').value;
+    if(nw!==co){ msg.textContent='❌ নতুন পাসওয়ার্ড দুইবার মেলেনি'; msg.classList.add('err'); return; }
+    if(nw.length<4){ msg.textContent='❌ ন্যূনতম ৪ অক্ষর'; msg.classList.add('err'); return; }
+    const r=await api('/api/admin/password',{method:'POST',body:JSON.stringify({current:cur,new:nw})});
+    if(r.ok){ msg.textContent='✅ পাসওয়ার্ড বদলে গেছে!'; msg.className='small ok'; $('#curPass').value=$('#newPass').value=$('#conPass').value=''; checkDefPass(); toast('✅ পাসওয়ার্ড বদলানো হয়েছে'); }
+    else { msg.textContent='❌ '+(r.error||'ব্যর্থ'); msg.classList.add('err'); }
+  });
+
+  function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+})();
+</script>
+</body>
+</html>
