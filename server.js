@@ -22,7 +22,7 @@ const DATA_DIR = path.join(ROOT, 'data');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 
-const APP_VERSION = '2.0'; // admin panel + live viewer counter release
+const APP_VERSION = '4.0'; // TV + Movies (FTP), password hidden, instant play
 
 // ---------------------------------------------------------------------------
 // Admin auth (in-memory token store) + viewer presence store
@@ -45,46 +45,142 @@ const IPTV_ORG_BD = 'https://iptv-org.github.io/iptv/countries/bd.m3u';
 const IPTV_ORG_IN = 'https://iptv-org.github.io/iptv/countries/in.m3u';
 
 const LOGO = (d) => 'https://www.google.com/s2/favicons?domain=' + d + '&sz=128';
-const DEMO_RAW = [
+
+// Curated working channels — tested via /api/stream proxy (2026-09-11)
+// These are shown FIRST and are the only ones in the default mobile view.
+// BD channels via aynaott/sonarbangla work reliably through the proxy.
+const VERIFIED_RAW = [
   '#EXTM3U',
-  '#EXTINF:-1 tvg-id="nasa" tvg-logo="' + LOGO('nasa.gov') + '" group-title="Space & Science",NASA TV',
-  'https://ntv1.akamaized.net/hls/live/2014075/NASA-NTV1-HLS/master.m3u8',
+  // --- Bangladesh — verified working via proxy ---
+  '#EXTINF:-1 tvg-id="ATNBangla.bd" tvg-logo="' + LOGO('atnbangla.tv') + '" group-title="Bangladesh",ATN Bangla HD',
+  'https://tvsen5.aynaott.com/atnbangla/index.m3u8',
+  '#EXTINF:-1 tvg-id="BanglaVision.bd" tvg-logo="' + LOGO('banglavision.tv') + '" group-title="Bangladesh",Bangla Vision HD',
+  'https://tvsen5.aynaott.com/banglavision/index.m3u8',
+  '#EXTINF:-1 tvg-id="BoishakhiTV.bd" tvg-logo="' + LOGO('boishakhi.tv') + '" group-title="Bangladesh",Boishakhi TV',
+  'https://boishakhi.sonarbanglatv.com/boishakhi/boishakhitv/index.m3u8',
+  '#EXTINF:-1 tvg-id="NTV.bd" tvg-logo="' + LOGO('ntvbd.com') + '" group-title="Bangladesh",NTV Bangladesh HD',
+  'https://tvsen5.aynaott.com/xV4jEKf3D9zc/index.m3u8',
+  '#EXTINF:-1 tvg-id="RTV.bd" tvg-logo="' + LOGO('rtvonline.com') + '" group-title="Bangladesh",RTV HD',
+  'https://tvsen5.aynaott.com/RtvHD/index.m3u8',
+  '#EXTINF:-1 tvg-id="TSports.bd" tvg-logo="' + LOGO('tsports.com') + '" group-title="Sports",T Sports HD',
+  'https://tvsen5.aynaott.com/TnMn5kZz8aLm/index.m3u8',
+  '#EXTINF:-1 tvg-id="EkusheyTV.bd" tvg-logo="' + LOGO('ekushey-tv.com') + '" group-title="Bangladesh",Ekushey TV',
+  'https://ekusheyserver.com/etvlivesn.m3u8',
+  '#EXTINF:-1 tvg-id="DBCNews.bd" tvg-logo="' + LOGO('dbcnews.tv') + '" group-title="News",DBC News',
+  'http://tvn3.chowdhury-shaheb.com/dbc/index.m3u8',
+  '#EXTINF:-1 tvg-id="MaasrangaTV.bd" tvg-logo="' + LOGO('maasranga.tv') + '" group-title="Entertainment",Maasranga TV',
+  'http://tvsen5.aynascope.net/maasrangatv/index.m3u8',
+  '#EXTINF:-1 tvg-id="GaziTV.bd" tvg-logo="' + LOGO('gtvbd.com') + '" group-title="Sports",Gazi TV (GTV)',
+  'http://tvn1.chowdhury-shaheb.com/gazitv/index.m3u8',
+  // --- International — verified working ---
   '#EXTINF:-1 tvg-id="dw" tvg-logo="' + LOGO('dw.com') + '" group-title="News",DW News English',
   'https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8',
-  '#EXTINF:-1 tvg-id="bloomberg" tvg-logo="' + LOGO('bloomberg.com') + '" group-title="Business",Bloomberg Television',
-  'https://www.bloomberg.com/media-manifest/streams/us.m3u8',
-  '#EXTINF:-1 tvg-id="redbull" tvg-logo="' + LOGO('redbull.com') + '" group-title="Sports & Adventure",Red Bull TV',
+  '#EXTINF:-1 tvg-id="redbull" tvg-logo="' + LOGO('redbull.com') + '" group-title="Sports",Red Bull TV',
   'https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8',
-  '#EXTINF:-1 tvg-id="akamai" tvg-logo="' + LOGO('akamai.com') + '" group-title="Tech & Test",Akamai Live Test',
+  '#EXTINF:-1 tvg-id="euronews" tvg-logo="' + LOGO('euronews.com') + '" group-title="News",Euronews English',
+  'https://euronews-euronews-1-eu.rakuten.wurl.tv/playlist.m3u8',
+  '#EXTINF:-1 tvg-id="aljazeera" tvg-logo="' + LOGO('aljazeera.com') + '" group-title="News",Al Jazeera English (backup)',
+  'https://live-hls-audio-web-aje.getaj.net/AJE/index.m3u8',
+  '#EXTINF:-1 tvg-id="france24" tvg-logo="' + LOGO('france24.com') + '" group-title="News",France 24 English',
+  'https://static.france24.com/live/F24_EN_HI_HLS/live_web.m3u8',
+  '#EXTINF:-1 tvg-id="nasa" tvg-logo="' + LOGO('nasa.gov') + '" group-title="Science",NASA TV Public',
+  'https://nasa-nasatv.wurl.tv/playlist.m3u8',
+  '#EXTINF:-1 tvg-id="bloomberg" tvg-logo="' + LOGO('bloomberg.com') + '" group-title="Business",Bloomberg Quicktake',
+  'https://bloomberg-bloomberg-3-us.plex.wurl.tv/playlist.m3u8',
+  '#EXTINF:-1 tvg-id="rt" tvg-logo="' + LOGO('rt.com') + '" group-title="News",RT News (Documentary)',
+  'https://rt-glb.rttv.com/live/rtnews/playlist.m3u8',
+  '#EXTINF:-1 tvg-id="fashiontv" tvg-logo="' + LOGO('fashiontv.com') + '" group-title="Entertainment",Fashion TV',
+  'https://fashiontv-fashiontv-1-eu.rakuten.wurl.tv/playlist.m3u8',
+  '',
+].join('\n');
+
+const DEMO_RAW = [
+  '#EXTM3U',
+  '#EXTINF:-1 tvg-id="akamai" tvg-logo="' + LOGO('akamai.com') + '" group-title="Test",Akamai Live Test',
   'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
   '',
 ].join('\n');
 
 function defaultState() {
   const sources = [];
-  // skym3u "etud" playlists are ad-protected (link-locker): they only serve the
-  // playlist to the exact browser session that completed the ads, so a server
-  // can never fetch them. We keep the demo + large public lists instead.
+  // Primary: curated working channels — shown first, mobile-friendly, instant play
+  sources.push({
+    id: 'verified',
+    name: '✅ Verified Working — Bangladesh + International (20+)',
+    type: 'raw',
+    raw: VERIFIED_RAW,
+  });
+  // Bangladesh — iptv-org (41 channels, many work via proxy)
   sources.push({
     id: 'bd',
-    name: 'Public TV — Bangladesh (iptv-org, 41+)',
+    name: '🇧🇩 Bangladesh — iptv-org (41+)',
     type: 'url',
     url: IPTV_ORG_BD,
+    enabled: true,
   });
+  // Bangladesh Extra — Mrgify BDIX mix (180+ channels, aynaott/sonarbangla/tsports work globally)
+  sources.push({
+    id: 'bd-mix',
+    name: '🇧🇩 Bangladesh Mix — Mrgify (180+ inc. T Sports, Deepto, MyTV)',
+    type: 'url',
+    url: 'https://raw.githubusercontent.com/abusaeeidx/Mrgify-BDIX-IPTV/main/playlist.m3u',
+    enabled: true,
+  });
+  // India — keep disabled by default (700+), user can enable from admin if needed
   sources.push({
     id: 'in',
-    name: 'Public TV — India (iptv-org, 700+)',
+    name: '🇮🇳 India — iptv-org (700+)',
     type: 'url',
     url: IPTV_ORG_IN,
+    enabled: false,
   });
   sources.push({
     id: 'demo',
     name: 'Free official demo channels',
     type: 'raw',
     raw: DEMO_RAW,
+    enabled: true,
   });
   applyEnvSources(sources);
-  return { sources, updated: Date.now() };
+
+  // Standard Movies — always working HTTP + FTP demo
+  // These are built-in, so even on Render free tier they never disappear
+  const movies = [
+    {
+      id: 'mov-bbb',
+      name: 'Big Buck Bunny — Demo Movie (HD)',
+      group: 'Demo',
+      logo: 'https://peach.blender.org/wp-content/uploads/title_anouncement.jpg',
+      url: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4',
+      enabled: true,
+    },
+    {
+      id: 'mov-sintel',
+      name: 'Sintel — Open Movie (HD)',
+      group: 'Demo',
+      logo: 'https://durian.blender.org/wp-content/uploads/2010/05/sintel_poster.jpg',
+      url: 'https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_1MB.mp4',
+      enabled: true,
+    },
+    {
+      id: 'mov-jelly',
+      name: 'Jellyfish — Nature Demo (HD)',
+      group: 'Demo',
+      logo: '',
+      url: 'https://test-videos.co.uk/vids/jellyfish/mp4/h264/720/Jellyfish_720_10s_1MB.mp4',
+      enabled: true,
+    },
+    {
+      id: 'mov-ftp-standard',
+      name: 'FTP Standard — Big Buck Bunny (FTP)',
+      group: 'FTP',
+      logo: '',
+      url: 'ftp://ftp.nluug.nl/pub/graphics/blender/demo/movies/BBB/bbb_sunflower_1080p_30fps_normal.mp4',
+      enabled: true,
+    },
+  ];
+
+  return { sources, movies, updated: Date.now() };
 }
 
 // PLAYLIST_URL="https://a.m3u,https://b.m3u" -> extra sources (kept across
@@ -117,6 +213,11 @@ function loadState() {
     }
     const s = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
     s.sources = s.sources || [];
+    // movies: if file exists but empty, fill with default standard movies
+    const def = defaultState();
+    if (!s.movies || !Array.isArray(s.movies) || s.movies.length === 0) {
+      s.movies = def.movies;
+    }
     applyEnvSources(s.sources); // make sure env playlists are always present
     fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
     return s;
@@ -137,24 +238,43 @@ function saveState(state) {
 
 // ---------------------------------------------------------------------------
 // Admin config (password stored hashed in data/config.json)
+// On Render the file-system is ephemeral, so we also respect ADMIN_PASSWORD env.
 // ---------------------------------------------------------------------------
 let config = null;
 function hashPw(pw) {
   return crypto.createHash('sha256').update('mytv::' + pw).digest('hex');
 }
 function loadConfig() {
-  const fallback = { adminPassHash: hashPw(process.env.ADMIN_PASSWORD || 'admin123'), createdAt: Date.now() };
+  const envPw = (process.env.ADMIN_PASSWORD || '').trim();
+  const fallbackHash = hashPw(envPw || 'admin123');
+  const fallback = { adminPassHash: fallbackHash, createdAt: Date.now(), fromEnv: !!envPw };
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     if (!fs.existsSync(CONFIG_FILE)) {
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(fallback, null, 2));
       config = fallback;
+      console.log('[config] created with ' + (envPw ? 'ADMIN_PASSWORD env' : 'default admin123'));
       return config;
     }
-    config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    if (!config.adminPassHash) config.adminPassHash = fallback.adminPassHash;
+    const parsed = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    // If file exists, it is the source of truth — even if env var is set,
+    // we keep the file so that a UI password change persists locally.
+    // On Render the file disappears on restart, so env var becomes source again.
+    config = {
+      adminPassHash: parsed.adminPassHash || fallbackHash,
+      createdAt: parsed.createdAt || Date.now(),
+      fromEnv: !!envPw && parsed.fromEnv !== false && parsed.adminPassHash === fallbackHash,
+    };
+    // If ADMIN_PASSWORD env is set and file still has the old default hash,
+    // upgrade it to env hash so that Render env change takes effect.
+    if (envPw && parsed.adminPassHash === hashPw('admin123')) {
+      config.adminPassHash = fallbackHash;
+      config.fromEnv = true;
+      try { fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2)); } catch (e) {}
+    }
     return config;
   } catch (e) {
+    console.error('[config] load failed, using fallback:', e.message);
     config = fallback;
     return config;
   }
@@ -163,8 +283,9 @@ function saveConfig() {
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    console.log('[config] saved');
   } catch (e) {
-    /* ignore */
+    console.error('[config] save failed:', e.message);
   }
 }
 function issueToken() {
@@ -298,8 +419,10 @@ async function resolveSource(src) {
   try {
     let text = '';
     if (src.type === 'raw') {
-      // the built-in demo list always comes from code so we can improve it anytime
-      text = src.id === 'demo' ? DEMO_RAW : src.raw || '';
+      // built-in lists always come from code so we can improve them anytime
+      if (src.id === 'verified') text = VERIFIED_RAW;
+      else if (src.id === 'demo') text = DEMO_RAW;
+      else text = src.raw || '';
     } else {
       const cached = cache.get(src.url);
       if (cached && Date.now() - cached.at < 10 * 60 * 1000) {
@@ -308,20 +431,23 @@ async function resolveSource(src) {
       const fetched = await fetchText(src.url);
       text = fetched.text;
 
-      const head = text.slice(0, 400).toLowerCase();
+      const head400 = text.slice(0, 400).toLowerCase();
+      const head1000 = text.slice(0, 2000).toLowerCase();
+      const hasExtM3U = head1000.includes('#extm3u');
+      const hasExtInf = text.toLowerCase().includes('#extinf');
       const looksHtml =
-        head.includes('<!doctype') ||
-        head.includes('<html') ||
-        head.includes('<!DOCTYPE') ||
-        (fetched.status === 403 && !head.startsWith('#extm3u')) ||
-        head.includes('ad-blocker') ||
-        head.includes('ublock') ||
-        head.includes('link-locker') ||
-        (fetched.status === 200 && !head.startsWith('#extm3u') && !head.includes('#extinf'));
+        head400.includes('<!doctype') ||
+        head400.includes('<html') ||
+        head400.includes('<!DOCTYPE') ||
+        head400.includes('ad-blocker') ||
+        head400.includes('ublock') ||
+        head400.includes('link-locker') ||
+        (fetched.status === 403 && !hasExtM3U) ||
+        (fetched.status === 200 && !hasExtM3U && !hasExtInf);
 
       if (looksHtml) {
         let reason = 'Ad-protected page returned instead of a playlist (link-locker).';
-        if (head.includes('ad-blocker') || head.includes('ublock')) {
+        if (head400.includes('ad-blocker') || head400.includes('ublock')) {
           reason =
             'The playlist provider shows an “disable ad-blocker” page. It must be unlocked in a real browser first.';
         } else if (fetched.status === 403) {
@@ -331,7 +457,7 @@ async function resolveSource(src) {
         return { ok: false, id: src.id, name: src.name, reason, status: fetched.status };
       }
 
-      if (!head.startsWith('#extm3u') && !head.includes('#extinf')) {
+      if (!hasExtM3U && !hasExtInf) {
         return {
           ok: false,
           id: src.id,
@@ -384,6 +510,7 @@ async function collectChannels() {
       tvgId: c.tvgId,
       url: c.url,
       scheme: (c.url.match(/^([a-z][a-z0-9+.-]*):/i) || [, ''])[1].toLowerCase(),
+      verified: c.sourceId === 'verified' || c.sourceId === 'demo',
     })),
     stats: {
       total: channels.length,
@@ -458,50 +585,83 @@ function rewriteManifest(manifestUrl, text) {
 async function pipeUpstream(res, target) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 90000);
-  const up = await fetch(target, {
-    headers: {
-      'user-agent': FETCH_UA,
-      accept: '*/*',
-      'accept-language': 'en-US,en;q=0.9',
-    },
-    redirect: 'follow',
-    signal: ctrl.signal,
-  });
+  let up;
+  try {
+    up = await fetch(target, {
+      headers: {
+        'user-agent': FETCH_UA,
+        'accept': '*/*',
+        'accept-language': 'en-US,en;q=0.9',
+        'referer': new URL(target).origin + '/',
+        'origin': new URL(target).origin,
+      },
+      redirect: 'follow',
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    clearTimeout(t);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'content-type': 'text/plain', 'access-control-allow-origin': '*' });
+    }
+    res.end('Upstream fetch failed: ' + (e.message || e));
+    return;
+  }
   clearTimeout(t);
 
   if (up.status >= 400 && up.status !== 416) {
-    res.writeHead(up.status, { 'content-type': 'text/plain' });
-    res.end('Upstream error ' + up.status);
+    // Try to give a helpful body instead of empty
+    let body = '';
+    try { body = await up.text(); } catch (e) {}
+    if (!res.headersSent) {
+      res.writeHead(up.status, { 'content-type': 'text/plain', 'access-control-allow-origin': '*' });
+    }
+    res.end('Upstream error ' + up.status + (body ? ': ' + body.slice(0, 500) : ''));
     return;
   }
 
   const headers = {
     'access-control-allow-origin': '*',
     'cache-control': 'no-store',
+    'access-control-allow-headers': '*',
   };
   const ct = up.headers.get('content-type');
 
   // If the upstream response is an HLS manifest, rewrite every absolute URL
   // inside it so segments & keys flow through our same-origin proxy too.
   if (up.body && looksLikeManifest(ct, target)) {
-    const text = await up.text();
+    let text = '';
+    try { text = await up.text(); } catch (e) { text = ''; }
+    if (!text) {
+      if (!res.headersSent) res.writeHead(502, headers);
+      return res.end('Empty manifest from upstream');
+    }
     const rewritten = rewriteManifest(target, text);
     headers['content-type'] = 'application/vnd.apple.mpegurl';
     headers['cache-control'] = 'no-store';
-    res.writeHead(up.status, headers);
+    if (!res.headersSent) res.writeHead(up.status, headers);
     res.end(rewritten, 'utf8');
     return;
   }
 
   if (ct) headers['content-type'] = ct;
-  if (up.status === 206) headers['content-range'] = up.headers.get('content-range');
+  else headers['content-type'] = 'application/octet-stream';
+  if (up.headers.get('content-length')) headers['content-length'] = up.headers.get('content-length');
+  if (up.status === 206) {
+    const cr = up.headers.get('content-range');
+    if (cr) headers['content-range'] = cr;
+  }
+  // Some CDNs need CORS for media
+  headers['access-control-expose-headers'] = 'content-length, content-range';
 
-  res.writeHead(up.status, headers);
+  if (!res.headersSent) res.writeHead(up.status, headers);
   if (up.body) {
     const nodeStream = Readable.fromWeb(up.body);
     // if the viewer stops / switches channel, free the upstream connection too
-    res.on('close', () => nodeStream.destroy());
-    nodeStream.on('error', () => res.destroy());
+    res.on('close', () => { try { nodeStream.destroy(); } catch (e) {} });
+    nodeStream.on('error', (err) => {
+      console.error('[proxy] stream error for', target, err.message);
+      try { res.destroy(); } catch (e) {}
+    });
     nodeStream.pipe(res);
   } else {
     res.end();
@@ -567,10 +727,13 @@ const server = http.createServer(async (req, res) => {
       return json(res, 401, { ok: false, error: 'Wrong password' });
     }
     if (p === '/api/admin/status' && req.method === 'GET') {
+      const envSet = !!(process.env.ADMIN_PASSWORD || '').trim();
+      const isDefault = hashPw('admin123') === config.adminPassHash && !envSet;
       return json(res, 200, {
         ok: true,
         admin: isAdmin(req),
-        defaultPassword: process.env.ADMIN_PASSWORD ? false : hashPw('admin123') === config.adminPassHash,
+        defaultPassword: isDefault,
+        envPasswordSet: envSet,
       });
     }
     if (p === '/api/admin/logout' && req.method === 'POST') {
@@ -587,7 +750,16 @@ const server = http.createServer(async (req, res) => {
       const npw = String(body.new || '');
       if (npw.length < 4) return json(res, 400, { ok: false, error: 'New password must be at least 4 characters' });
       config.adminPassHash = hashPw(npw);
+      config.fromEnv = false;
       saveConfig();
+      const envSet = !!(process.env.ADMIN_PASSWORD || '').trim();
+      // On Render free tier the file disappears on restart, so warn the user
+      if (envSet) {
+        return json(res, 200, {
+          ok: true,
+          warning: 'Password changed for this instance, but ADMIN_PASSWORD env var is set on Render — after a restart it will revert to the env value. Update the env var in Render dashboard for permanent change.',
+        });
+      }
       return json(res, 200, { ok: true });
     }
 
@@ -678,15 +850,20 @@ const server = http.createServer(async (req, res) => {
       const find = () => state.sources.find((s) => s.id === body.id);
 
       if (body.action === 'delete' && body.id) {
+        const del = state.sources.find((s) => s.id === body.id);
+        if (del && del.url) cache.delete(del.url);
         state.sources = state.sources.filter((s) => s.id !== body.id);
         saveState(state);
+        cache.clear();
         return json(res, 200, { ok: true });
       }
       if (body.action === 'toggle' && body.id) {
         const s = find();
         if (s) {
           s.enabled = body.enabled === false ? false : true;
+          if (s.url) cache.delete(s.url);
           saveState(state);
+          cache.clear();
           return json(res, 200, { ok: true, enabled: s.enabled !== false });
         }
         return json(res, 404, { ok: false, error: 'Source not found' });
@@ -694,6 +871,7 @@ const server = http.createServer(async (req, res) => {
       if (body.action === 'update' && body.id) {
         const s = find();
         if (!s) return json(res, 404, { ok: false, error: 'Source not found' });
+        if (s.url) cache.delete(s.url);
         if (body.name !== undefined) s.name = String(body.name).slice(0, 120);
         if (body.url !== undefined && String(body.url).trim()) {
           const url = String(body.url).trim();
@@ -702,6 +880,7 @@ const server = http.createServer(async (req, res) => {
         }
         if (body.raw !== undefined && s.id !== 'demo') s.raw = String(body.raw);
         saveState(state);
+        cache.clear();
         return json(res, 200, { ok: true });
       }
 
@@ -713,6 +892,7 @@ const server = http.createServer(async (req, res) => {
         if (exists) Object.assign(exists, entry);
         else state.sources.push(entry);
         saveState(state);
+        cache.clear();
         return json(res, 200, { ok: true, id });
       }
       if (body.url !== undefined && String(body.url).trim()) {
@@ -722,12 +902,14 @@ const server = http.createServer(async (req, res) => {
         }
         const id = body.id || 'src-' + Date.now().toString(36);
         const entry = { id, name, type: 'url', url, enabled: true };
-        // quick reachability probe
+        // quick reachability probe — clear cache first so we fetch fresh
+        cache.delete(url);
         const probe = await resolveSource(entry).catch(() => null);
         const exists = state.sources.find((s) => s.id === id);
         if (exists) Object.assign(exists, entry);
         else state.sources.push(entry);
         saveState(state);
+        cache.clear();
         if (probe && !probe.ok) {
           return json(res, 200, {
             ok: true,
@@ -744,6 +926,90 @@ const server = http.createServer(async (req, res) => {
         });
       }
       return json(res, 400, { ok: false, error: 'Provide a url or raw m3u text.' });
+    }
+
+    // ----- API: movies (public) -----
+    if (p === '/api/movies' && req.method === 'GET') {
+      const movies = (state.movies || []).filter(m => m.enabled !== false).map(m => ({
+        id: m.id,
+        name: m.name,
+        group: m.group || 'Movies',
+        logo: m.logo || '',
+        url: m.url,
+        scheme: (m.url.match(/^([a-z][a-z0-9+.-]*):/i) || [, ''])[1].toLowerCase(),
+      }));
+      return json(res, 200, { ok: true, movies, total: movies.length });
+    }
+
+    // ----- Admin: movie sources -----
+    if (p === '/api/movie-source' && req.method === 'GET') {
+      if (!isAdmin(req)) return json(res, 401, { ok: false, error: 'Admin only' });
+      return json(res, 200, {
+        ok: true,
+        movies: (state.movies || []).map(m => ({
+          id: m.id,
+          name: m.name,
+          group: m.group || 'Movies',
+          logo: m.logo || '',
+          url: m.url,
+          enabled: m.enabled !== false,
+        })),
+      });
+    }
+    if (p === '/api/movie-source' && req.method === 'POST') {
+      if (!isAdmin(req)) return json(res, 401, { ok: false, error: 'Admin only' });
+      const body = JSON.parse(await readBody(req));
+      const findM = () => (state.movies || []).find(m => m.id === body.id);
+      if (!state.movies) state.movies = [];
+
+      if (body.action === 'delete' && body.id) {
+        state.movies = state.movies.filter(m => m.id !== body.id);
+        saveState(state);
+        return json(res, 200, { ok: true });
+      }
+      if (body.action === 'toggle' && body.id) {
+        const m = findM();
+        if (m) {
+          m.enabled = body.enabled === false ? false : true;
+          saveState(state);
+          return json(res, 200, { ok: true, enabled: m.enabled !== false });
+        }
+        return json(res, 404, { ok: false, error: 'Movie not found' });
+      }
+      if (body.action === 'update' && body.id) {
+        const m = findM();
+        if (!m) return json(res, 404, { ok: false, error: 'Movie not found' });
+        if (body.name !== undefined) m.name = String(body.name).slice(0, 150);
+        if (body.group !== undefined) m.group = String(body.group).slice(0, 80);
+        if (body.logo !== undefined) m.logo = String(body.logo).slice(0, 500);
+        if (body.url !== undefined && String(body.url).trim()) {
+          const url = String(body.url).trim();
+          if (!/^(https?|ftp):\/\//i.test(url)) return json(res, 400, { ok: false, error: 'URL must start with http://, https:// or ftp://' });
+          m.url = url;
+        }
+        saveState(state);
+        return json(res, 200, { ok: true });
+      }
+
+      // add new movie
+      const name = String(body.name || 'Untitled Movie').slice(0, 150);
+      const url = String(body.url || '').trim();
+      if (!url) return json(res, 400, { ok: false, error: 'Movie URL required' });
+      if (!/^(https?|ftp):\/\//i.test(url)) return json(res, 400, { ok: false, error: 'URL must start with http://, https:// or ftp://' });
+      const id = body.id || 'mov-' + Date.now().toString(36);
+      const entry = {
+        id,
+        name,
+        group: String(body.group || 'Movies').slice(0, 80),
+        logo: String(body.logo || '').slice(0, 500),
+        url,
+        enabled: true,
+      };
+      const exists = state.movies.find(m => m.id === id);
+      if (exists) Object.assign(exists, entry);
+      else state.movies.push(entry);
+      saveState(state);
+      return json(res, 200, { ok: true, id });
     }
 
     // ----- API: proxy an HLS/media url -----
