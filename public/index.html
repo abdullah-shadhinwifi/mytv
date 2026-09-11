@@ -1,132 +1,117 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MyTV · Live Channels</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>MyTV · Live TV + Movies</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236d5cff'/%3E%3Crect x='22' y='36' width='56' height='34' rx='6' fill='none' stroke='white' stroke-width='6'/%3E%3Cpath d='M40 70v8h20v-8' fill='none' stroke='white' stroke-width='6'/%3E%3Ccircle cx='50' cy='53' r='9' fill='%2322d3ee'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- decorative glow -->
-  <div class="bg-glow glow-a"></div>
-  <div class="bg-glow glow-b"></div>
-
-  <header class="topbar">
-    <div class="brand" onclick="App.goHome()" title="Home">
+  <header class="topbar" id="topbar">
+    <div class="brand" onclick="App.goHome()">
       <div class="brand-icon">
-        <svg viewBox="0 0 100 100" width="34" height="34">
-          <rect width="100" height="100" rx="24" fill="url(#lg)"/>
-          <defs>
-            <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#7c6bff"/><stop offset="1" stop-color="#22d3ee"/>
-            </linearGradient>
-          </defs>
+        <svg viewBox="0 0 100 100" width="32" height="32">
+          <rect width="100" height="100" rx="22" fill="url(#lg)"/><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c6bff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
           <rect x="20" y="34" width="60" height="36" rx="7" fill="none" stroke="#fff" stroke-width="7"/>
           <path d="M40 70v9h20v-9" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
           <circle cx="50" cy="52" r="10" fill="#fff"/>
         </svg>
       </div>
       <div class="brand-text">
-        <span class="brand-name">My<span style="color:#7dd3fc">TV</span></span>
-        <span class="brand-sub">Live Channel Player</span>
+        <span class="brand-name">My<span>TV</span></span>
+        <span class="brand-sub" id="liveCountWrap"><span class="dot"></span><span id="liveCount">0</span> Live • <span id="movieCount">0</span> Movies</span>
       </div>
     </div>
-
+    <div class="search-box" id="searchBox">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M9.5 3a6.5 6.5 0 0 1 5.1 10.5l5.95 5.94-1.41 1.42-5.95-5.95A6.5 6.5 0 1 1 9.5 3zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z"/></svg>
+      <input id="searchInput" type="search" placeholder="চ্যানেল / মুভি খুঁজুন..." autocomplete="off" />
+      <button id="clearSearch" class="clear-btn hidden">✕</button>
+    </div>
     <div class="top-actions">
-      <button class="btn ghost" id="reloadBtn" title="Reload playlists">
-        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-        Refresh
-      </button>
-      <a class="btn ghost" id="adminBtn" href="/admin" target="_blank" title="Admin panel">
-        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
-        Admin
-      </a>
+      <a href="/admin" target="_blank" class="icon-btn" title="Admin">🛡️</a>
     </div>
   </header>
 
-  <!-- banner: shown when a configured source could not be loaded -->
+  <!-- Main Tabs: TV vs Movies -->
+  <nav class="main-tabs" id="mainTabs">
+    <button class="mtab active" data-mtab="tv">📺 Live TV</button>
+    <button class="mtab" data-mtab="movies">🎬 Movies (FTP)</button>
+  </nav>
+
+  <!-- Player — instant -->
+  <section class="player-wrap hidden" id="playerWrap">
+    <div class="player-sticky" id="playerSticky">
+      <div class="video-box" id="videoBox">
+        <video id="tvVideo" playsinline controls preload="none" crossorigin="anonymous"></video>
+        <div class="v-overlay" id="vLoading">
+          <div class="v-spinner"></div>
+          <div class="v-text">
+            <div class="v-title" id="vLoadingTitle">চালু হচ্ছে...</div>
+            <div class="v-sub" id="vLoadingSub"></div>
+          </div>
+        </div>
+        <div class="v-overlay hidden" id="vError">
+          <div class="v-err-icon">📡</div>
+          <div class="v-text">
+            <div class="v-title">সিগন্যাল দুর্বল</div>
+            <div class="v-sub" id="vErrorSub">পরেরটায় যাচ্ছি...</div>
+          </div>
+        </div>
+      </div>
+      <div class="player-meta" id="playerMeta">
+        <div class="meta-left">
+          <span class="live-badge" id="playerBadge"><span class="pulse"></span> LIVE</span>
+          <h2 id="playerTitle">—</h2>
+          <span id="playerGroup"></span>
+        </div>
+        <div class="meta-right">
+          <button class="pill-btn" id="shareBtn">↗️ Share</button>
+          <button class="pill-btn" id="closePlayerBtn">✕</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Category chips -->
+  <nav class="cat-nav" id="catNav">
+    <div class="cat-scroll" id="catChips"></div>
+  </nav>
+
   <div class="notice hidden" id="noticeBar"></div>
 
-  <main>
-    <!-- HERO / search -->
-    <section class="hero">
-      <div class="hero-copy">
-        <span class="eyebrow">
-          <span class="pulse-dot"></span> <span id="liveCount">0</span> live channels
-        </span>
-        <h1>Watch TV, right in your browser.</h1>
-        <p>Pick a channel and press play — no app, no install.</p>
-      </div>
-      <div class="search-wrap">
-        <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M9.5 3a6.5 6.5 0 0 1 5.1 10.5l5.95 5.94-1.41 1.42-5.95-5.95A6.5 6.5 0 1 1 9.5 3zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z"/></svg>
-        <input id="searchInput" type="search" placeholder="Search channels…" autocomplete="off" />
-        <kbd id="clearSearch" title="Clear">✕</kbd>
-      </div>
-      <div class="chips" id="catChips"></div>
-    </section>
+  <!-- TV Grid -->
+  <main class="main" id="tvMain">
+    <div class="section-head">
+      <h3 id="gridHeading">✅ চলছে এমন চ্যানেল</h3>
+      <span class="count-pill" id="gridCount">0</span>
+    </div>
+    <div class="grid" id="channelGrid"></div>
+    <div class="empty hidden" id="emptyState">
+      <div class="empty-icon">📺</div>
+      <h3>কোনো চ্যানেল পাওয়া যায়নি</h3>
+      <p>অন্য কিছু লিখে খুঁজুন</p>
+    </div>
+    <div class="mobile-hint"><span>💡 ট্যাপ করলেই সাথে সাথে চলবে • কোনো error নেই</span></div>
+  </main>
 
-    <!-- PLAYER -->
-    <section class="player-shell hidden" id="playerShell">
-      <div class="player-head">
-        <div>
-          <div class="player-title-row">
-            <span class="live-badge"><span class="pulse-dot"></span> LIVE</span>
-            <h2 id="playerTitle">—</h2>
-          </div>
-          <div class="player-sub">
-            <span id="playerGroup"></span>
-            <span class="dot-sep">•</span>
-            <span id="playerSource"></span>
-          </div>
-        </div>
-        <div class="player-actions">
-          <button class="btn ghost sm" id="copyUrlBtn" title="Copy stream URL">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
-            Copy URL
-          </button>
-          <button class="btn ghost sm" id="cinemaBtn" title="Cinema / fullscreen">
-            <svg viewBox="0 0 24 24" width="16" height="16"><path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-          </button>
-          <button class="btn ghost sm" id="closePlayerBtn" title="Close player">✕</button>
-        </div>
-      </div>
-
-      <div class="video-wrap" id="videoWrap">
-        <video id="tvVideo" controls playsinline preload="none"></video>
-        <div class="video-state hidden" id="videoState">
-          <div class="spin"></div>
-          <p id="videoStateText">Connecting to stream…</p>
-        </div>
-      </div>
-
-      <div class="player-tools">
-        <div class="tool-left">
-          <span class="tip">Tip: if a stream won't play in the browser, copy its URL and open it in
-            <b>VLC</b>, <b>TiviMate</b> or <b>IPTV Smarters</b>.</span>
-        </div>
-        <div class="tool-right" id="notPlayableBox"></div>
-      </div>
-    </section>
-
-    <!-- CHANNEL GRID -->
-    <section class="grid-section">
-      <div class="section-head">
-        <h3 id="gridHeading">All channels</h3>
-        <span class="count-pill" id="gridCount"></span>
-      </div>
-      <div class="grid" id="channelGrid"></div>
-      <div class="empty-state hidden" id="emptyState">
-        <div class="empty-emoji">📺</div>
-        <h3>No channels found</h3>
-        <p>Try another search, or add a playlist in <b>Sources</b>.</p>
-      </div>
-    </section>
+  <!-- Movies Grid -->
+  <main class="main hidden" id="moviesMain">
+    <div class="section-head">
+      <h3 id="movieHeading">🎬 মুভি কালেকশন</h3>
+      <span class="count-pill" id="movieGridCount">0</span>
+    </div>
+    <div class="grid" id="movieGrid"></div>
+    <div class="empty hidden" id="movieEmpty">
+      <div class="empty-icon">🎬</div>
+      <h3>কোনো মুভি নেই</h3>
+      <p>Admin panel → Movies / FTP থেকে FTP লিংক যোগ করুন, এখানে মুভি সেকশন খুলবে।</p>
+      <p style="margin-top:10px;font-size:12px;color:#8b95b0">উদাহরণ: <code>http://ftp.example.com/movies/avatar.mp4</code> বা <code>ftp://user:pass@host/film.mkv</code></p>
+    </div>
   </main>
 
   <footer class="footer">
-    <p>MyTV · simple live-TV web player · loads any <code>.m3u</code> playlist</p>
-    <p style="margin-top:6px;font-size:11.5px">Viewer mode — শুধু দেখার জন্য · <a href="/admin" target="_blank" style="color:#7dd3fc">🛡️ Admin Panel</a> দিয়ে প্লেলিস্ট ম্যানেজ করুন</p>
+    <p>MyTV v4 • TV + Movies • <a href="/admin" target="_blank">Admin</a></p>
   </footer>
 
   <div class="toast hidden" id="toast"></div>
