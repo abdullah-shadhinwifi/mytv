@@ -1,464 +1,475 @@
-/* MyTV — channel grid + live player
- * Loads /api/channels (M3U parsed server-side), plays HLS via hls.js
- * through the same-origin proxy /api/stream.
- */
-(function () {
+/* MyTV v4.0 — TV + Movies (FTP), instant play, password hidden in admin */
+(function(){
   'use strict';
-
-  const $ = (s) => document.querySelector(s);
-  const $$ = (s) => Array.from(document.querySelectorAll(s));
-  const FAV_KEY = 'mytv.favs.v1';
+  const $ = s => document.querySelector(s);
+  const FAV_KEY = 'mytv.favs.v4';
 
   const state = {
-    data: null,            // /api/channels payload
-    channels: [],
-    query: '',
-    category: 'all',
-    active: null,          // currently playing channel object
+    data: null,
+    all: [],
+    filtered: [],
+    movies: [],
+    filteredMovies: [],
+    active: null, // channel or movie
+    activeType: 'tv', // tv | movie
     hls: null,
+    category: 'all',
+    movieCategory: 'all',
+    query: '',
+    mainTab: 'tv',
+    retry: 0,
   };
 
-  /* ---------------- helpers ---------------- */
-  function esc(v) {
-    return String(v == null ? '' : v)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
-  function proxied(u) { return '/api/stream?url=' + encodeURIComponent(u); }
-  function img(u) { return '/api/img?url=' + encodeURIComponent(u); }
+  const CAT_MAP = [
+    { id: 'all', label: 'সব', match: () => true },
+    { id: 'bangladesh', label: '🇧🇩 বাংলাদেশ', match: c => /bangladesh|bangla|bd|atn|ntv|rtv|somoy|jamuna|channel|ekushey|dbc|maasranga|gazi/i.test((c.name+' '+c.group+' '+c.source).toLowerCase()) || c.sourceId==='verified' },
+    { id: 'news', label: '📰 খবর', match: c => /news|খবর|dbc|somoy|jamuna|ekattor/i.test((c.group+' '+c.name).toLowerCase()) },
+    { id: 'sports', label: '⚽ খেলা', match: c => /sport|tsports|gazi|gtv|cricket|football/i.test((c.group+' '+c.name).toLowerCase()) },
+    { id: 'entertainment', label: '🎬 বিনোদন', match: c => /entertainment|general|movie|drama|natok|vision|boishakhi/i.test((c.group).toLowerCase()) },
+    { id: 'kids', label: '👶 কিডস', match: c => /kids|cartoon|children|duronto/i.test((c.group+' '+c.name).toLowerCase()) },
+  ];
 
-  function getFavs() {
-    try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch (e) { return []; }
-  }
-  function isFav(id) { return getFavs().includes(id); }
-  function toggleFav(id) {
-    const f = getFavs();
-    const i = f.indexOf(id);
-    if (i >= 0) f.splice(i, 1); else f.push(id);
-    try { localStorage.setItem(FAV_KEY, JSON.stringify(f)); } catch (e) { /* private/strict mode */ }
-    rerenderGridOnly();
-  }
+  function esc(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  const proxied = u => '/api/stream?url='+encodeURIComponent(u);
+  const imgProxy = u => '/api/img?url='+encodeURIComponent(u);
 
-  function toast(msg, ms) {
-    const t = $('#toast');
-    t.textContent = msg;
-    t.classList.remove('hidden');
-    clearTimeout(t._tm);
-    t._tm = setTimeout(() => t.classList.add('hidden'), ms || 3200);
+  function favs(){ try{return JSON.parse(localStorage.getItem(FAV_KEY))||[];}catch(e){return [];} }
+  function isFav(id){return favs().includes(id);}
+  function toggleFav(id){
+    let f=favs(); const i=f.indexOf(id);
+    if(i>=0) f.splice(i,1); else f.unshift(id);
+    try{localStorage.setItem(FAV_KEY,JSON.stringify(f.slice(0,150)));}catch(e){}
+    renderGrid(); renderMovieGrid();
   }
 
-  function copyText(txt, okMsg) {
-    const done = () => toast(okMsg || 'Copied to clipboard ✓');
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(txt).then(done, () => fallbackCopy(txt, done));
-    } else fallbackCopy(txt, done);
-  }
-  function fallbackCopy(txt, done) {
-    const ta = document.createElement('textarea');
-    ta.value = txt; document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); done(); } catch (e) { toast('Copy failed'); }
-    ta.remove();
+  function toast(msg, ms){
+    const t=$('#toast'); if(!t) return;
+    t.textContent=msg; t.classList.remove('hidden');
+    clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.add('hidden'), ms||3200);
   }
 
-  /* ---------------- data ---------------- */
-  async function loadChannels(silent) {
-    if (!silent) setLoading(true);
-    try {
-      const r = await fetch('/api/channels');
-      const data = await r.json();
-      state.data = data;
-      state.channels = data.channels || [];
-      setLoading(false);
-      renderNotice();
+  async function loadChannels(){
+    try{
+      const r=await fetch('/api/channels',{cache:'no-store'});
+      const data=await r.json();
+      state.data=data;
+      const all = data.channels||[];
+      all.sort((a,b)=>{
+        if(a.verified && !b.verified) return -1;
+        if(!a.verified && b.verified) return 1;
+        const af=isFav(a.id), bf=isFav(b.id);
+        if(af && !bf) return -1;
+        if(!af && bf) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      state.all=all;
+      applyFilter();
       renderChips();
       renderGrid();
-      renderSourceBadge();
-      const live = state.channels.length;
-      $('#liveCount').textContent = live;
-      return data;
-    } catch (e) {
-      setLoading(false);
-      showNotice('Could not load channel list from the server. Is the server running?', 'error');
+      const lc=$('#liveCount'); if(lc) lc.textContent=all.length;
+    }catch(e){
+      const bar=$('#noticeBar'); if(bar){ bar.textContent='চ্যানেল লিস্ট লোড হয়নি'; bar.classList.remove('hidden'); }
     }
   }
 
-  function setLoading(v) {
-    $('#reloadBtn').disabled = v;
-    if (v) $('#reloadBtn').classList.add('busy');
-    else $('#reloadBtn').classList.remove('busy');
-  }
-
-  /* ---------------- notices ---------------- */
-  function renderNotice() {
-    const bar = $('#noticeBar');
-    if (!state.data) { bar.classList.add('hidden'); return; }
-    const bad = (state.data.sources || []).filter((s) => !s.reachable);
-    if (!bad.length) { bar.classList.add('hidden'); return; }
-    bar.classList.remove('hidden');
-    bar.classList.add('error');
-    bar.innerHTML =
-      '<div style="flex:1;min-width:0">' + bad.map((s) =>
-        '<div style="margin-bottom:5px"><b>' + esc(s.name) + ':</b> ' + esc(s.reason || 'unreachable') + '</div>'
-      ).join('') + '</div>';
-  }
-
-  function showNotice(msg, kind) {
-    const bar = $('#noticeBar');
-    bar.classList.remove('hidden', 'error', 'ok');
-    if (kind) bar.classList.add(kind);
-    bar.innerHTML = '<div style="flex:1">' + esc(msg) + '</div>';
-  }
-
-  /* ---------------- category chips ---------------- */
-  function renderChips() {
-    const wrap = $('#catChips');
-    const counts = {};
-    for (const c of state.channels) counts[c.group] = (counts[c.group] || 0) + 1;
-    const groups = Object.keys(counts).sort((a, b) => a.localeCompare(b));
-    let html =
-      '<button class="chip ' + (state.category === 'all' ? 'active' : '') + '" data-cat="all">All <span class="n">' + state.channels.length + '</span></button>';
-    for (const g of groups) {
-      html += '<button class="chip ' + (state.category === g ? 'active' : '') + '" data-cat="' + esc(g) + '">' +
-        esc(g) + ' <span class="n">' + counts[g] + '</span></button>';
-    }
-    wrap.innerHTML = html;
-    $$('.chip', wrap).forEach((el) =>
-      el.addEventListener('click', () => {
-        state.category = el.dataset.cat;
-        state.query = $('#searchInput').value = '';
-        renderChips();
-        renderGrid();
-      })
-    );
-  }
-
-  function visibleChannels() {
-    let list = state.channels;
-    if (state.query) {
-      const q = state.query.toLowerCase();
-      list = list.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.group || '').toLowerCase().includes(q));
-    }
-    if (state.category !== 'all') list = list.filter((c) => c.group === state.category);
-    // favorites-first when a real query exists
-    if (state.query) {
-      const favs = getFavs();
-      list = [...list].sort((a, b) => (favs.includes(b.id) ? 1 : 0) - (favs.includes(a.id) ? 1 : 0));
-    }
-    return list;
-  }
-
-  /* ---------------- channel cards ---------------- */
-  function initials(name) {
-    const parts = (name || '?').replace(/[^\p{L}\p{N} ]/gu, '').trim().split(/\s+/).slice(0, 2);
-    let s = parts.map((p) => p[0]).join('');
-    if (!s) s = '?';
-    return s.toUpperCase().slice(0, 2);
-  }
-
-  function cardHTML(c) {
-    const fav = isFav(c.id) ? 'on' : '';
-    const playable = /^https?:/i.test(c.url || '');
-    const isActive = state.active && state.active.id === c.id;
-    const logo = c.logo
-      ? '<img class="logo-img" src="' + esc(img(c.logo)) + '" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'grid\'" alt=""/><div class="logo-fallback" style="display:none">' + esc(initials(c.name)) + '</div>'
-      : '<div class="logo-fallback">' + esc(initials(c.name)) + '</div>';
-    const manySources = (state.data && state.data.sources.filter((s) => s.reachable).length > 1) || (state.channels.some((ch) => ch.sourceId !== c.sourceId));
-    const srcBadge = (state.data && state.data.sources.length > 1 && manySources)
-      ? '<span class="badge-source" title="Playlist source">' + esc(c.sourceId === 'etud-sky' ? 'Etud' : c.sourceId === 'demo' ? 'Demo' : c.sourceId.slice(0, 10)) + '</span>'
-      : '';
-    return (
-      '<div class="card ' + (isActive ? 'active' : '') + '" data-id="' + esc(c.id) + '" data-name="' + esc(c.name) + '">' +
-        '<div class="card-art">' +
-          srcBadge + logo +
-          '<div class="play-hover"><span class="pbtn"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="#fff" d="M8 5v14l11-7z"/></svg></span></div>' +
-        '</div>' +
-        '<div class="card-body">' +
-          '<div class="card-name" title="' + esc(c.name) + '">' + esc(c.name) + '</div>' +
-          '<div class="card-meta">' +
-            '<span class="card-group">' + esc(c.group) + '</span>' +
-            '<button class="fav ' + fav + '" data-fav="1" data-id="' + esc(c.id) + '" title="Favourite">' + (fav ? '★' : '☆') + '</button>' +
-          '</div>' +
-        '</div>' +
-      '</div>'
-    );
-  }
-
-  function rerenderGridOnly() {
-    const grid = $('#channelGrid');
-    const els = grid.children;
-    for (const el of els) {
-      const id = el.dataset.id;
-      const c = state.channels.find((x) => x.id === id);
-      if (!c) continue;
-      const favBtn = el.querySelector('.fav');
-      if (favBtn) {
-        const on = isFav(id);
-        favBtn.classList.toggle('on', on);
-        favBtn.textContent = on ? '★' : '☆';
-      }
+  async function loadMovies(){
+    try{
+      const r=await fetch('/api/movies',{cache:'no-store'});
+      const data=await r.json();
+      state.movies = data.movies||[];
+      applyMovieFilter();
+      renderMovieChips();
+      renderMovieGrid();
+      const mc=$('#movieCount'); if(mc) mc.textContent=state.movies.length;
+      const mgc=$('#movieGridCount'); if(mgc) mgc.textContent=state.movies.length;
+    }catch(e){
+      state.movies=[]; renderMovieGrid();
     }
   }
 
-  function renderGrid() {
-    const grid = $('#channelGrid');
-    const empty = $('#emptyState');
-    const list = visibleChannels();
-
-    const favMode = state.query && state.category === 'all';
-    let shown = favMode
-      ? [...list.filter((c) => isFav(c.id)), ...list.filter((c) => !isFav(c.id))]
-      : list;
-
-    if (!state.query && state.category === 'all' && getFavs().length > 0) {
-      shown = [...list.filter((c) => isFav(c.id)), ...list.filter((c) => !isFav(c.id))];
+  function applyFilter(){
+    let list=state.all;
+    const q=state.query.toLowerCase().trim();
+    if(q) list=list.filter(c=> (c.name||'').toLowerCase().includes(q) || (c.group||'').toLowerCase().includes(q));
+    if(state.category!=='all'){
+      const cat=CAT_MAP.find(c=>c.id===state.category);
+      if(cat) list=list.filter(cat.match);
     }
+    state.filtered=list;
+  }
 
-    empty.classList.toggle('hidden', shown.length > 0);
-    grid.innerHTML = shown.map(cardHTML).join('');
+  function applyMovieFilter(){
+    let list=state.movies;
+    const q=state.query.toLowerCase().trim();
+    if(q) list=list.filter(m=> (m.name||'').toLowerCase().includes(q) || (m.group||'').toLowerCase().includes(q));
+    if(state.movieCategory!=='all'){
+      const qcat=state.movieCategory.toLowerCase();
+      list=list.filter(m=> (m.group||'').toLowerCase().includes(qcat));
+    }
+    state.filteredMovies=list;
+  }
 
-    $('#gridCount').textContent = shown.length + ' of ' + state.channels.length;
-    $('#gridHeading').textContent = state.query
-      ? 'Results for “' + state.query + '”'
-      : state.category === 'all'
-        ? (getFavs().length ? '⭐ Favourites first · All channels' : 'All channels')
-        : state.category;
-
-    // bind events
-    $$('.card', grid).forEach((el) => {
-      el.addEventListener('click', (ev) => {
-        if (ev.target.closest('.fav')) return;
-        const c = state.channels.find((x) => x.id === el.dataset.id);
-        if (c) playChannel(c);
+  function renderChips(){
+    const wrap=$('#catChips'); if(!wrap) return;
+    if(state.mainTab!=='tv') return;
+    const counts={};
+    for(const cat of CAT_MAP) counts[cat.id]= state.all.filter(cat.match).length;
+    wrap.innerHTML=CAT_MAP.map(cat=>{
+      const active=state.category===cat.id?'active':'';
+      const n=counts[cat.id]||0;
+      return `<button class="chip ${active}" data-cat="${cat.id}">${cat.label} <span class="n">${n}</span></button>`;
+    }).join('');
+    wrap.querySelectorAll('.chip').forEach(el=>{
+      el.addEventListener('click',()=>{
+        state.category=el.dataset.cat;
+        applyFilter(); renderChips(); renderGrid();
       });
     });
-    $$('.fav', grid).forEach((el) =>
-      el.addEventListener('click', () => toggleFav(el.dataset.id))
-    );
   }
 
-  /* ---------------- player ---------------- */
-  function kindOf(c) {
-    const u = (c.url || '').toLowerCase();
-    const m = /^([a-z][a-z0-9+.-]*):/.exec(c.url || '');
-    const scheme = m ? m[1] : '';
-    if (scheme && !/^https?$/.test(scheme)) return { type: 'external', scheme };
-    if (u.includes('.m3u8') || u.includes('mpegurl')) return { type: 'hls' };
-    if (/\.(mp4|m4v|webm|ogv|ogg|mov|mkv)(\?|$)/.test(u)) return { type: 'direct' };
-    if (/\.(ts|m2ts|mts|mp2t|aac)(\?|$)/.test(u)) return { type: 'rawts' };
-    return { type: 'hls' }; // best guess; error UI will guide
+  function renderMovieChips(){
+    const wrap=$('#catChips'); if(!wrap) return;
+    if(state.mainTab!=='movies') return;
+    // movie categories from data
+    const groups={};
+    for(const m of state.movies) groups[m.group||'Movies']=(groups[m.group||'Movies']||0)+1;
+    const cats=['all', ...Object.keys(groups).sort()];
+    wrap.innerHTML=cats.map(g=>{
+      const id=g==='all'?'all':g;
+      const label=g==='all'?'সব মুভি':g;
+      const active=state.movieCategory===id?'active':'';
+      const n=g==='all'?state.movies.length:(groups[g]||0);
+      return `<button class="chip ${active}" data-mcat="${esc(id)}">${esc(label)} <span class="n">${n}</span></button>`;
+    }).join('');
+    wrap.querySelectorAll('.chip').forEach(el=>{
+      el.addEventListener('click',()=>{
+        state.movieCategory=el.dataset.mcat;
+        applyMovieFilter(); renderMovieChips(); renderMovieGrid();
+      });
+    });
   }
 
-  async function playChannel(c) {
+  function initials(name){
+    const p=(name||'?').replace(/[^\p{L}\p{N} ]/gu,'').trim().split(/\s+/).slice(0,2).map(x=>x[0]).join('');
+    return (p||'?').toUpperCase().slice(0,2);
+  }
+
+  function cardHTML(c){
+    const fav=isFav(c.id)?'on':'';
+    const active=state.active && state.active.id===c.id && state.activeType==='tv'?'active':'';
+    const logo=c.logo?`<img class="logo-img" src="${esc(imgProxy(c.logo))}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'" alt=""><div class="logo-fallback" style="display:none">${esc(initials(c.name))}</div>`:`<div class="logo-fallback">${esc(initials(c.name))}</div>`;
+    const verified=c.verified?`<div class="verified-dot" title="Verified">✓</div>`:'';
+    return `<div class="card ${active}" data-id="${esc(c.id)}"><div class="card-art">${logo}<div class="play-badge"><span>▶</span></div>${verified}</div><div class="card-body"><div class="card-name" title="${esc(c.name)}">${esc(c.name)}</div><div class="card-meta"><span class="card-group">${esc(c.group||'Live')}</span><button class="fav-btn ${fav}" data-fav="${esc(c.id)}">${fav?'★':'☆'}</button></div></div></div>`;
+  }
+
+  function movieCardHTML(m){
+    const fav=isFav(m.id)?'on':'';
+    const active=state.active && state.active.id===m.id && state.activeType==='movie'?'active':'';
+    const poster=m.logo?`<img class="logo-img" src="${esc(imgProxy(m.logo))}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'" alt="" style="object-fit:cover;padding:0"><div class="logo-fallback" style="display:none">${esc(initials(m.name))}</div>`:`<div class="logo-fallback">🎬</div>`;
+    const isFtp=m.scheme==='ftp' ? '<span style="position:absolute;top:6px;left:6px;background:rgba(245,178,58,.9);color:#000;font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px">FTP</span>' : '';
+    return `<div class="card ${active}" data-mid="${esc(m.id)}"><div class="card-art" style="aspect-ratio:2/3;background:#0d1122">${poster}<div class="play-badge"><span>▶</span></div>${isFtp}<div class="verified-dot" style="background:#f5b23a;color:#000">🎬</div></div><div class="card-body"><div class="card-name" title="${esc(m.name)}">${esc(m.name)}</div><div class="card-meta"><span class="card-group">${esc(m.group||'Movies')}</span><button class="fav-btn ${fav}" data-fav="${esc(m.id)}">${fav?'★':'☆'}</button></div></div></div>`;
+  }
+
+  function renderGrid(){
+    const grid=$('#channelGrid'); const empty=$('#emptyState');
+    const gc=$('#gridCount'); const gh=$('#gridHeading');
+    if(!grid) return;
+    if(state.mainTab!=='tv') return;
+    const list=state.filtered;
+    if(gc) gc.textContent=list.length;
+    if(gh){
+      const cat=CAT_MAP.find(c=>c.id===state.category);
+      if(state.query) gh.textContent=`"${state.query}" — ${list.length}টি`;
+      else gh.textContent=cat?cat.label+' চ্যানেল':`সব চ্যানেল (${list.length})`;
+      if(state.category==='all' && !state.query) gh.textContent=`✅ চলছে এমন চ্যানেল (${list.length})`;
+    }
+    if(!list.length){ grid.innerHTML=''; if(empty) empty.classList.remove('hidden'); return; }
+    if(empty) empty.classList.add('hidden');
+    grid.innerHTML=list.map(cardHTML).join('');
+    grid.querySelectorAll('.card').forEach(el=>{
+      el.addEventListener('click',e=>{
+        if(e.target.closest('.fav-btn')) return;
+        const c=state.all.find(x=>x.id===el.dataset.id);
+        if(c) playChannel(c);
+      });
+    });
+    grid.querySelectorAll('.fav-btn').forEach(btn=>{
+      btn.addEventListener('click',e=>{ e.stopPropagation(); toggleFav(btn.dataset.fav); });
+    });
+  }
+
+  function renderMovieGrid(){
+    const grid=$('#movieGrid'); const empty=$('#movieEmpty');
+    const gc=$('#movieGridCount'); const gh=$('#movieHeading');
+    if(!grid) return;
+    if(state.mainTab!=='movies') return;
+    const list=state.filteredMovies;
+    if(gc) gc.textContent=list.length;
+    if(gh){
+      if(state.query) gh.textContent=`"${state.query}" — ${list.length}টি মুভি`;
+      else if(state.movieCategory==='all') gh.textContent=`🎬 মুভি কালেকশন (${list.length})`;
+      else gh.textContent=`${state.movieCategory} — ${list.length}টি`;
+    }
+    if(!list.length){ grid.innerHTML=''; if(empty) empty.classList.remove('hidden'); return; }
+    if(empty) empty.classList.add('hidden');
+    grid.innerHTML=list.map(movieCardHTML).join('');
+    grid.querySelectorAll('.card').forEach(el=>{
+      el.addEventListener('click',e=>{
+        if(e.target.closest('.fav-btn')) return;
+        const m=state.movies.find(x=>x.id===el.dataset.mid);
+        if(m) playMovie(m);
+      });
+    });
+    grid.querySelectorAll('.fav-btn').forEach(btn=>{
+      btn.addEventListener('click',e=>{ e.stopPropagation(); toggleFav(btn.dataset.fav); });
+    });
+  }
+
+  function playerEls(){
+    return {
+      wrap: $('#playerWrap'),
+      video: $('#tvVideo'),
+      loading: $('#vLoading'),
+      loadTitle: $('#vLoadingTitle'),
+      loadSub: $('#vLoadingSub'),
+      err: $('#vError'),
+      errSub: $('#vErrorSub'),
+      title: $('#playerTitle'),
+      group: $('#playerGroup'),
+      badge: $('#playerBadge'),
+    };
+  }
+
+  function showLoading(name, sub){
+    const {wrap, loading, loadTitle, loadSub, err}=playerEls();
+    if(wrap) wrap.classList.remove('hidden');
+    if(loading) loading.classList.remove('hidden');
+    if(err) err.classList.add('hidden');
+    if(loadTitle) loadTitle.textContent=name||'চালু হচ্ছে...';
+    if(loadSub) loadSub.textContent=sub||'';
+  }
+  function hideLoading(){ const {loading}=playerEls(); if(loading) loading.classList.add('hidden'); }
+  function showErrorAuto(msg){
+    const {loading, err, errSub}=playerEls();
+    if(loading) loading.classList.add('hidden');
+    if(err){ err.classList.remove('hidden'); if(errSub) errSub.textContent=msg||'পরেরটায় যাচ্ছি...'; }
+  }
+
+  function stopPlayback(){
+    Heart.stop();
+    const {video}=playerEls();
+    if(state.hls){ try{state.hls.destroy();}catch(e){} state.hls=null; }
+    if(video){ try{ video.pause(); video.removeAttribute('src'); video.load(); }catch(e){} }
+  }
+
+  function nextChannel(){
+    if(!state.filtered.length) return null;
+    const idx=state.filtered.findIndex(c=>state.active && c.id===state.active.id);
+    if(idx>=0 && idx < state.filtered.length-1) return state.filtered[idx+1];
+    return state.filtered[0];
+  }
+
+  async function playChannel(c){
     stopPlayback();
-    state.active = c;
-
-    const shell = $('#playerShell');
-    shell.classList.remove('hidden');
-    const kind = kindOf(c);
-    $('#playerTitle').textContent = c.name;
-    $('#playerGroup').textContent = c.group || '';
-    $('#playerSource').textContent = 'Playlist: ' + c.source;
+    state.active=c; state.activeType='tv'; state.retry=0;
+    const {wrap, video, title, group, badge}=playerEls();
+    if(!wrap || !video) return;
+    wrap.classList.remove('hidden');
+    if(title) title.textContent=c.name;
+    if(group) group.textContent=c.group||'Live';
+    if(badge) badge.innerHTML='<span class="pulse"></span> LIVE';
+    showLoading(c.name,'লোড হচ্ছে...');
     renderGrid();
+    if(window.innerWidth<768) wrap.scrollIntoView({behavior:'smooth', block:'start'});
+    const src=proxied(c.url);
+    let played=false;
+    const onPlaying=()=>{ if(played) return; played=true; hideLoading(); Heart.start(); };
+    const onError=()=>{
+      if(played) return;
+      if(state.retry<1){
+        state.retry++; showLoading(c.name,'আবার চেষ্টা...');
+        setTimeout(()=>{ if(state.active && state.active.id===c.id) playChannel(c); },1200);
+      }else{
+        toast(`⚠️ ${c.name} অফলাইন, পরেরটা...`,2500);
+        showErrorAuto('পরের চ্যানেলে যাচ্ছি...');
+        const nxt=nextChannel();
+        if(nxt && nxt.id!==c.id) setTimeout(()=>playChannel(nxt),1200);
+      }
+    };
+    video.addEventListener('playing', onPlaying, {once:true});
+    video.addEventListener('error', onError, {once:true});
+    setTimeout(()=>{ if(!played && state.active && state.active.id===c.id) onError(); },8000);
+    try{
+      if(window.Hls && window.Hls.isSupported()){
+        const hls=new Hls({enableWorker:true, maxBufferLength:30, backBufferLength:60, fragLoadingMaxRetry:3, manifestLoadingMaxRetry:2});
+        state.hls=hls;
+        hls.on(Hls.Events.MANIFEST_PARSED, ()=>{
+          const p=video.play(); if(p) p.catch(()=>{ showLoading(c.name,'▶️ ট্যাপ করে চালু করুন'); });
+        });
+        hls.on(Hls.Events.ERROR, (e,data)=>{
+          if(!data || !data.fatal) return;
+          if(data.type===Hls.ErrorTypes.NETWORK_ERROR){ try{hls.startLoad();}catch(e){} if(!played) setTimeout(()=>{ if(!played) onError(); },1500); }
+          else if(data.type===Hls.ErrorTypes.MEDIA_ERROR){ try{hls.recoverMediaError();}catch(e){ onError(); } }
+          else onError();
+        });
+        hls.loadSource(src); hls.attachMedia(video);
+      }else{
+        video.src=src; video.load();
+        const p=video.play(); if(p) p.catch(()=>{ showLoading(c.name,'▶️ ট্যাপ করে চালু করুন'); });
+      }
+    }catch(e){ onError(); }
+  }
 
-    const video = $('#tvVideo');
-    const stateBox = $('#videoState');
-    const notBox = $('#notPlayableBox');
+  async function playMovie(m){
+    stopPlayback();
+    state.active=m; state.activeType='movie';
+    const {wrap, video, title, group, badge}=playerEls();
+    if(!wrap || !video) return;
+    wrap.classList.remove('hidden');
+    if(title) title.textContent=m.name;
+    if(group) group.textContent=m.group||'Movies';
+    if(badge) badge.innerHTML='🎬 MOVIE';
+    renderMovieGrid();
+    if(window.innerWidth<768) wrap.scrollIntoView({behavior:'smooth', block:'start'});
 
-    if (kind.type === 'external' || kind.type === 'rawts') {
-      // Show guidance instead of trying an unplayable stream
-      const why =
-        kind.type === 'external'
-          ? 'This channel uses the <b>' + esc(kind.scheme) + '://</b> protocol, which browsers cannot play.'
-          : 'This channel is a raw MPEG-TS link, which browsers cannot play directly.';
-      stateBox.innerHTML = '';
-      stateBox.classList.remove('hidden');
-      stateBox.innerHTML =
-        '<div style="text-align:center;max-width:460px;padding:0 16px">' +
-        '<div style="font-size:42px;margin-bottom:8px">📺</div>' +
-        '<p style="color:#dfe6fb;font-weight:700;margin-bottom:6px">Cannot preview this stream type</p>' +
-        '<p style="font-size:13px;line-height:1.6">' + why +
-        '<br>Use it in <b>VLC</b>, <b>TiviMate</b>, <b>IPTV Smarters</b> or another IPTV player.</p></div>';
-      notBox.innerHTML =
-        '<button class="btn primary sm" id="extCopyBtn">Copy stream URL</button>' +
-        '<a class="btn ghost sm" href="vlc://' + esc(c.url) + '">Open in VLC</a>';
-      $('#extCopyBtn').onclick = () => copyText(c.url, 'Stream URL copied ✓');
-      shell.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const url=m.url||'';
+    const scheme=(url.match(/^([a-z]+):/i)||[,''])[1].toLowerCase();
+
+    if(scheme==='ftp' || scheme==='ftps'){
+      // FTP cannot play directly in browser — show guidance, try proxy if http fallback available
+      showLoading(m.name,'FTP লিংক — VLC তে ভালো চলবে');
+      // Try to proxy via /api/stream if it's ftp? Our proxy only allows http/https, so we show options
+      setTimeout(()=>{
+        hideLoading();
+        toast('FTP লিংক ব্রাউজারে সরাসরি চলে না — VLC তে খুলুন বা Copy URL করুন', 4000);
+        // Still try to set src via proxy? If url is ftp, proxy will reject with 400, so we show blocked UI
+        const {err, errSub, loading}=playerEls();
+        if(loading) loading.classList.add('hidden');
+        if(err){
+          err.classList.remove('hidden');
+          err.querySelector('.v-title').textContent='FTP মুভি';
+          if(errSub) errSub.innerHTML=`এই মুভি <b>FTP</b> সার্ভারে।<br>ব্রাউজারে সরাসরি না চললে <b>VLC</b> তে খুলুন।<br><br><button class="pill-btn" onclick="navigator.clipboard.writeText('${esc(url)}').then(()=>{document.getElementById('toast').textContent='URL কপি হয়েছে';document.getElementById('toast').classList.remove('hidden');setTimeout(()=>document.getElementById('toast').classList.add('hidden'),2000)})">📋 Copy FTP URL</button> <a class="pill-btn" href="${esc(url)}" target="_blank" style="text-decoration:none">↗️ Open</a>`;
+        }
+      }, 800);
       return;
     }
 
-    // normal web-playable path
-    notBox.innerHTML = '';
-    stateBox.classList.remove('hidden');
-    $('#videoStateText').textContent = 'Connecting to live stream…';
+    // HTTP movie — try proxy to avoid CORS
+    const src = /^https?:\/\//i.test(url) ? proxied(url) : url;
+    showLoading(m.name,'মুভি লোড হচ্ছে...');
 
-    const src = proxied(c.url);
-    const tryNative = () => {
-      video.src = src;
-      video.load();
-    };
+    let played=false;
+    const onPlaying=()=>{ if(played) return; played=true; hideLoading(); };
+    const onError=()=>{ if(played) return; toast('মুভি চালানো যায়নি — লিংক চেক করুন', 3000); showErrorAuto('মুভি লিংক কাজ করছে না'); };
 
-    if (kind.type === 'hls' && window.Hls && window.Hls.isSupported()) {
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 60,
-        maxBufferLength: 40,
-        liveSyncDurationCount: 5,
-        fragLoadingMaxRetry: 5,
-        manifestLoadingMaxRetry: 3,
-        capLevelToPlayerSize: true,
-      });
-      state.hls = hls;
-      hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (!data || !data.fatal) return;
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR && data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
-          showVideoError('Stream URL is not reachable (network error).');
-        } else if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          hls.startLoad(); // transient
-        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-          hls.recoverMediaError();
-        } else {
-          showVideoError('The stream could not be played in the browser.');
-        }
-      });
-      hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (data && data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR && data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
-          // already handled above
-        }
-      });
-      hls.loadSource(src);
-      hls.attachMedia(video);
-    } else {
-      tryNative();
-      video.addEventListener('error', () => showVideoError('The stream could not be played in the browser.'), { once: true });
-    }
+    video.addEventListener('playing', onPlaying, {once:true});
+    video.addEventListener('error', onError, {once:true});
 
-    video.addEventListener('playing', () => {
-      stateBox.classList.add('hidden');
-      Heart.start(); // count this viewer as live-watching
-    });
-
-    shell.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    const started = video.play();
-    if (started) started.catch(() => {/* user will press play */});
-  }
-
-  function showVideoError(msg) {
-    const stateBox = $('#videoState');
-    const video = $('#tvVideo');
-    stateBox.innerHTML =
-      '<div style="text-align:center;max-width:460px;padding:0 16px">' +
-      '<div style="font-size:40px;margin-bottom:8px">⚠️</div>' +
-      '<p style="color:#ffd3e5;font-weight:700;margin-bottom:4px">Playback failed</p>' +
-      '<p style="font-size:13px">' + esc(msg) + '</p>' +
-      '<button class="btn primary sm" id="retryBtn" style="margin-top:12px">Try again</button>' +
-      '<button class="btn ghost sm" id="errCopyBtn" style="margin-top:12px;margin-left:6px">Copy URL</button>' +
-      '</div>';
-    stateBox.classList.remove('hidden');
-    video.pause();
-    const retry = $('#retryBtn');
-    if (retry) retry.onclick = () => { if (state.active) playChannel(state.active); };
-    const cp = $('#errCopyBtn');
-    if (cp) cp.onclick = () => state.active && copyText(state.active.url, 'Stream URL copied ✓');
-  }
-
-  function stopPlayback() {
-    Heart.stop();
-    if (state.hls) { try { state.hls.destroy(); } catch (e) {} state.hls = null; }
-    const video = $('#tvVideo');
-    video.pause();
-    video.removeAttribute('src');
-    video.load();
-  }
-
-  /* ---------------- viewer presence (for the admin live counter) ----------------
-   * While a channel is actually playing, this browser tells the server “I’m
-   * watching channel X” every 15 s. The admin dashboard counts those viewers.
-   * Viewers never see or touch any settings.
-   */
-  const Heart = (function () {
-    let vid = '';
-    try {
-      vid = localStorage.getItem('mytv.viewer') || '';
-      if (!vid) {
-        vid = 'v-' + (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
-        localStorage.setItem('mytv.viewer', vid);
+    try{
+      if(url.includes('.m3u8') && window.Hls && window.Hls.isSupported()){
+        const hls=new Hls({enableWorker:true});
+        state.hls=hls;
+        hls.on(Hls.Events.MANIFEST_PARSED, ()=>{ const p=video.play(); if(p) p.catch(()=>{}); });
+        hls.on(Hls.Events.ERROR, (e,d)=>{ if(d && d.fatal) onError(); });
+        hls.loadSource(src); hls.attachMedia(video);
+      }else{
+        video.src=src; video.load();
+        const p=video.play(); if(p) p.catch(()=>{ showLoading(m.name,'▶️ ট্যাপ করে চালু করুন'); });
       }
-    } catch (e) { vid = 'v-' + Date.now(); }
+    }catch(e){ onError(); }
+  }
 
-    let timer = null;
-    function report(playing) {
-      const ch = state.active;
-      const body = JSON.stringify({
-        viewerId: vid,
-        playing: !!playing && !!ch,
-        channelId: ch ? ch.id : '',
-        name: ch ? ch.name : '',
-        source: ch ? ch.source : '',
-        t: Date.now(),
-      });
-      try {
-        if (navigator.sendBeacon) navigator.sendBeacon('/api/heartbeat', new Blob([body], { type: 'application/json' }));
-        else fetch('/api/heartbeat', { method: 'POST', headers: { 'content-type': 'application/json' }, body }).catch(() => {});
-      } catch (e) {}
+  const Heart=(function(){
+    let vid=''; try{ vid=localStorage.getItem('mytv.viewer')||''; if(!vid){ vid='v-'+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2)); localStorage.setItem('mytv.viewer',vid);} }catch(e){vid='v-'+Date.now();}
+    let t=null;
+    function report(play){
+      const ch=state.active;
+      const body=JSON.stringify({viewerId:vid, playing:!!play && !!ch, channelId:ch?ch.id:'', name:ch?ch.name:'', source:ch?ch.source:'', t:Date.now()});
+      try{ if(navigator.sendBeacon) navigator.sendBeacon('/api/heartbeat', new Blob([body],{type:'application/json'})); else fetch('/api/heartbeat',{method:'POST',headers:{'content-type':'application/json'},body}).catch(()=>{});}catch(e){}
     }
-    return {
-      start() { report(true); if (!timer) timer = setInterval(() => report(true), 15000); },
-      stop() { if (timer) { clearInterval(timer); timer = null; } report(false); },
-    };
+    return {start(){report(true); if(!t) t=setInterval(()=>report(true),15000);}, stop(){ if(t){clearInterval(t); t=null;} report(false);} };
   })();
 
-  /* ---------------- UI wiring ---------------- */
-  function bind() {
-    $('#searchInput').addEventListener('input', (e) => {
-      state.query = e.target.value.trim();
-      renderChips();
-      renderGrid();
-      $('#clearSearch').classList.toggle('hidden', !state.query);
+  function bind(){
+    const si=$('#searchInput'); const cs=$('#clearSearch');
+    if(si){
+      si.addEventListener('input',e=>{
+        state.query=e.target.value.trim();
+        if(cs) cs.classList.toggle('hidden', !state.query);
+        if(state.mainTab==='tv'){ applyFilter(); renderGrid(); }
+        else { applyMovieFilter(); renderMovieGrid(); }
+      });
+    }
+    if(cs){
+      cs.addEventListener('click',()=>{
+        if(si) si.value=''; state.query=''; cs.classList.add('hidden');
+        if(state.mainTab==='tv'){ applyFilter(); renderGrid(); } else { applyMovieFilter(); renderMovieGrid(); }
+        if(si) si.focus();
+      });
+    }
+    const close=$('#closePlayerBtn');
+    if(close) close.addEventListener('click',()=>{
+      stopPlayback(); state.active=null;
+      const w=$('#playerWrap'); if(w) w.classList.add('hidden');
+      renderGrid(); renderMovieGrid();
     });
-    $('#clearSearch').addEventListener('click', () => {
-      $('#searchInput').value = '';
-      state.query = '';
-      $('#clearSearch').classList.add('hidden');
-      renderChips();
-      renderGrid();
-      $('#searchInput').focus();
+    const share=$('#shareBtn');
+    if(share) share.addEventListener('click',()=>{
+      if(!state.active) return;
+      const url=location.origin+'/?play='+encodeURIComponent(state.active.id)+'&type='+state.activeType;
+      if(navigator.share){ navigator.share({title:state.active.name, url}).catch(()=>{}); }
+      else { navigator.clipboard.writeText(url).then(()=>toast('লিংক কপি ✓')); }
     });
-    $('#reloadBtn').addEventListener('click', () => loadChannels(true));
 
-    $('#closePlayerBtn').addEventListener('click', () => {
-      stopPlayback();
-      state.active = null;
-      $('#playerShell').classList.add('hidden');
-      renderGrid();
-    });
-    $('#cinemaBtn').addEventListener('click', toggleCinema);
-    const vw = $('#videoWrap');
-    vw.addEventListener('dblclick', toggleCinema);
-    $('#copyUrlBtn').addEventListener('click', () => {
-      if (state.active) copyText(state.active.url, 'Stream URL copied ✓');
+    // main tabs
+    document.querySelectorAll('.mtab').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const tab=btn.dataset.mtab;
+        state.mainTab=tab;
+        document.querySelectorAll('.mtab').forEach(b=>b.classList.toggle('active', b.dataset.mtab===tab));
+        const tvMain=$('#tvMain'); const movMain=$('#moviesMain'); const catNav=$('#catNav');
+        if(tab==='tv'){
+          if(tvMain) tvMain.classList.remove('hidden');
+          if(movMain) movMain.classList.add('hidden');
+          if(catNav) catNav.classList.remove('hidden');
+          renderChips(); renderGrid();
+        }else{
+          if(tvMain) tvMain.classList.add('hidden');
+          if(movMain) movMain.classList.remove('hidden');
+          if(catNav) catNav.classList.remove('hidden');
+          renderMovieChips(); renderMovieGrid();
+        }
+        window.scrollTo({top:0,behavior:'smooth'});
+      });
     });
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        $('#searchInput').focus();
-      }
-    });
+    // auto play from URL
+    const params=new URLSearchParams(location.search);
+    const pid=params.get('play'); const ptype=params.get('type')||'tv';
+    if(pid){
+      const tryPlay=()=>{
+        if(ptype==='movie'){
+          const m=state.movies.find(x=>x.id===pid); if(m){ state.mainTab='movies'; document.querySelectorAll('.mtab').forEach(b=>b.classList.toggle('active', b.dataset.mtab==='movies')); $('#tvMain').classList.add('hidden'); $('#moviesMain').classList.remove('hidden'); playMovie(m); }
+        }else{
+          const c=state.all.find(x=>x.id===pid); if(c) playChannel(c);
+        }
+      };
+      setTimeout(tryPlay, 1000);
+    }
   }
 
-  function toggleCinema() {
-    const vw = $('#videoWrap');
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else if (vw.requestFullscreen) vw.requestFullscreen().catch(() => toast('Fullscreen not allowed'));
-    else toast('Fullscreen not supported here');
-  }
-
-  function renderSourceBadge() {}
-
-  /* ---------------- boot ---------------- */
   bind();
-  window.addEventListener('pagehide', () => Heart.stop());
+  window.addEventListener('pagehide',()=>Heart.stop());
   loadChannels();
-  window.App = { goHome: () => { $('#searchInput').value=''; state.query=''; state.category='all'; renderChips(); renderGrid(); window.scrollTo({top:0,behavior:'smooth'}); } };
+  loadMovies();
+
+  window.App={
+    goHome(){
+      state.query=''; state.category='all'; state.movieCategory='all';
+      const si=$('#searchInput'); if(si) si.value='';
+      const cs=$('#clearSearch'); if(cs) cs.classList.add('hidden');
+      applyFilter(); applyMovieFilter(); renderChips(); renderMovieChips(); renderGrid(); renderMovieGrid();
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+  };
 })();
