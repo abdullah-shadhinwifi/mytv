@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MyTV · Admin Panel</title>
+<title>MyTV · Admin Panel v4</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%236d5cff'/%3E%3Crect x='22' y='36' width='56' height='34' rx='6' fill='none' stroke='white' stroke-width='6'/%3E%3Cpath d='M40 70v8h20v-8' fill='none' stroke='white' stroke-width='6'/%3E%3Ccircle cx='50' cy='53' r='9' fill='%2322d3ee'/%3E%3C/svg%3E" />
 <style>
 :root{
@@ -38,7 +38,6 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;resi
 .muted{color:var(--muted)} .small{font-size:12px}
 .err{color:#fca5c5}.ok{color:#86efac}.warn{color:#fcd34d}
 
-/* topbar */
 .topbar{display:flex;align-items:center;gap:14px;padding:13px clamp(12px,3vw,26px);
   background:rgba(7,10,20,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px}
@@ -55,7 +54,6 @@ main{padding:22px clamp(12px,3vw,26px) 60px;max-width:1200px;margin:0 auto}
 .page h2{margin-bottom:4px;font-size:20px}
 .page .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
 
-/* login */
 .login-wrap{min-height:100vh;display:grid;place-items:center;padding:20px}
 .login-card{width:min(380px,100%);background:linear-gradient(180deg,#151b38,#0a0e20);border:1px solid var(--line);
   border-radius:22px;padding:30px 26px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
@@ -65,7 +63,6 @@ main{padding:22px clamp(12px,3vw,26px) 60px;max-width:1200px;margin:0 auto}
 .login-card form{display:flex;flex-direction:column;gap:11px}
 .login-hint{margin-top:14px;font-size:11.5px;color:var(--muted);border:1px dashed var(--line);border-radius:10px;padding:9px 11px;line-height:1.6}
 
-/* dashboard */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;position:relative;overflow:hidden}
 .stat .num{font-size:34px;font-weight:800;margin-top:4px;letter-spacing:-.5px}
@@ -81,7 +78,6 @@ main{padding:22px clamp(12px,3vw,26px) 60px;max-width:1200px;margin:0 auto}
 .rowline:last-child{border-bottom:none}
 .rowline .rname{font-weight:600;min-width:0;word-break:break-word}
 
-/* sources */
 .src-item{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;padding:13px 15px;margin-bottom:10px}
 .src-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .src-name{font-weight:700;font-size:14px;flex:1;min-width:140px}
@@ -112,6 +108,10 @@ tr:last-child td{border-bottom:none}
 .modal{width:min(560px,100%);background:#121834;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 24px 70px rgba(0,0,0,.6);max-height:90vh;overflow:auto}
 .modal h3{margin-bottom:12px}
 .mb10{margin-bottom:10px}
+.pw-wrap{position:relative;display:flex;align-items:center}
+.pw-wrap input{padding-right:42px}
+.pw-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:rgba(255,255,255,.08);color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;display:grid;place-items:center;font-size:14px}
+.pw-toggle:hover{background:rgba(255,255,255,.14);color:var(--text)}
 </style>
 </head>
 <body>
@@ -121,15 +121,16 @@ tr:last-child td{border-bottom:none}
   <div class="login-card">
     <div class="logo">🛡️</div>
     <h1>MyTV Admin Panel</h1>
-    <p>শুধুমাত্র অ্যাডমিনের জন্য — পাসওয়ার্ড দিয়ে প্রবেশ করুন</p>
+    <p>শুধুমাত্র অ্যাডমিনের জন্য — পাসওয়ার্ড লুকানো থাকবে</p>
     <form id="loginForm">
-      <input type="password" id="loginPass" placeholder="Admin password" autocomplete="current-password" required />
+      <div class="pw-wrap">
+        <input type="password" id="loginPass" placeholder="Admin password" autocomplete="current-password" required />
+        <button type="button" class="pw-toggle" data-target="loginPass" title="দেখুন/লুকান">👁️</button>
+      </div>
       <button class="btn primary" type="submit" id="loginBtn">Login →</button>
     </form>
     <div class="err small" id="loginErr" style="text-align:center;margin-top:6px"></div>
-    <div class="login-hint">💡 <b>ডিফল্ট পাসওয়ার্ড:</b> <code>admin123</code><br/>
-      ঢোকার পর <b>Settings</b> ট্যাব থেকে পাসওয়ার্ড বদলে নিন।<br/>
-      <span id="passNote"></span></div>
+    <div class="login-hint">💡 <b>ডিফল্ট:</b> <code>admin123</code> — পাসওয়ার্ড চোখ বন্ধ করে টাইপ করুন, কেউ দেখতে পাবে না।<br><span id="passNote"></span></div>
     <p style="margin-top:14px"><a href="/" target="_blank">← ইউজার টিভি পেজে যান</a></p>
   </div>
 </div>
@@ -137,10 +138,11 @@ tr:last-child td{border-bottom:none}
 <!-- APP -->
 <div id="appWrap" class="hidden">
   <div class="topbar">
-    <div class="brand">🛡️ MyTV <span class="tag">ADMIN</span></div>
+    <div class="brand">🛡️ MyTV <span class="tag">ADMIN v4</span></div>
     <nav class="nav">
       <button data-tab="dash" class="active">📊 Dashboard</button>
-      <button data-tab="sources">📡 Sources</button>
+      <button data-tab="sources">📡 TV M3U</button>
+      <button data-tab="movies">🎬 Movies / FTP</button>
       <button data-tab="settings">⚙️ Settings</button>
       <a class="btn sm" href="/" target="_blank" style="text-decoration:none">📺 User TV</a>
       <button class="logout" id="logoutBtn">🚪 Logout</button>
@@ -151,76 +153,65 @@ tr:last-child td{border-bottom:none}
     <div id="dashPage" class="page">
       <h2>📊 লাইভ ড্যাশবোর্ড</h2>
       <div class="sub" id="dashSub">এখন কে কে লাইভ দেখছে — প্রতি ১০ সেকেন্ডে অটো আপডেট</div>
-
       <div class="banner hidden" id="defPassBanner">⚠️ আপনি এখনো <b>ডিফল্ট পাসওয়ার্ড</b> ব্যবহার করছেন! পাবলিক লিংকে শেয়ার করার আগে <b>Settings → পাসওয়ার্ড বদলান</b>।</div>
-
       <div class="stat-grid">
         <div class="stat live"><span class="pulse-dot"></span><span class="lbl">এখন লাইভ দেখছে</span><div class="num" id="statLive">0</div></div>
         <div class="stat"><span class="lbl">মোট চ্যানেল</span><div class="num" id="statCh">0</div></div>
-        <div class="stat"><span class="lbl">চালু সোর্স</span><div class="num" id="statSrcOn">0</div></div>
+        <div class="stat"><span class="lbl">মোট মুভি</span><div class="num" id="statMov">0</div></div>
         <div class="stat"><span class="lbl">সমস্যায় সোর্স</span><div class="num" id="statSrcBad">0</div></div>
       </div>
-
-      <div class="panel">
-        <h3>👁️ এখন যেসব চ্যানেল দেখা হচ্ছে</h3>
-        <div id="liveTableWrap"><p class="muted small">কেউ লাইভ দেখছে না…</p></div>
-      </div>
-
-      <div class="panel">
-        <h3>📋 সোর্স অনুযায়ী দর্শক</h3>
-        <div id="srcViewWrap"><p class="muted small">—</p></div>
-      </div>
-
-      <div class="panel">
-        <h3>🛰️ সোর্স অবস্থা ও চ্যানেল সংখ্যা</h3>
-        <div id="chStatusWrap"></div>
+      <div class="panel"><h3>👁️ এখন যেসব চ্যানেল দেখা হচ্ছে</h3><div id="liveTableWrap"><p class="muted small">কেউ লাইভ দেখছে না…</p></div></div>
+      <div class="panel"><h3>📋 সোর্স অনুযায়ী দর্শক</h3><div id="srcViewWrap"><p class="muted small">—</p></div></div>
+      <div class="panel"><h3>🛰️ সোর্স অবস্থা</h3><div id="chStatusWrap"></div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn primary sm" id="refreshListBtn">🔄 রিফ্রেশ / নতুন করে তালিকা আনা</button>
-          <button class="btn sm" id="quickSrcBtn">📡 Sources ম্যানেজ করুন</button>
+          <button class="btn primary sm" id="refreshListBtn">🔄 রিফ্রেশ</button>
+          <button class="btn sm" id="quickSrcBtn">📡 TV M3U ম্যানেজ</button>
+          <button class="btn sm" id="quickMovBtn">🎬 Movies ম্যানেজ</button>
         </div>
       </div>
     </div>
 
     <div id="sourcesPage" class="page hidden">
-      <h2>📡 Sources (প্লেলিস্ট ম্যানেজ)</h2>
-      <div class="sub">যোগ/বদল/অক্ষম/মুছে ফেলা — শুধু অ্যাডমিন পারবে। ইউজার শুধু দেখবে।</div>
+      <h2>📡 TV Sources — M3U লিংক</h2>
+      <div class="sub">Live TV M3U লিংক যোগ করুন — ইউজার শুধু দেখবে, পাসওয়ার্ড দেখবে না।</div>
       <div id="srcList"></div>
       <div class="add-form">
-        <h4>➕ নতুন প্লেলিস্ট যোগ করুন</h4>
-        <div class="f-row">
-          <input id="addName" type="text" placeholder="নাম (যেমন: আমার প্লেলিস্ট)" />
+        <h4>➕ নতুন TV M3U যোগ করুন</h4>
+        <div class="f-row"><input id="addName" type="text" placeholder="নাম (যেমন: Bangladesh TV)" /></div>
+        <div class="f-row"><input id="addUrl" type="url" placeholder="M3U URL — https://example.com/list.m3u" /><button class="btn primary" id="addUrlBtn">Add M3U URL</button></div>
+        <div class="f-row"><textarea id="addRaw" rows="4" placeholder="…বা সরাসরি M3U টেক্সট পেস্ট করুন (raw)"></textarea></div>
+        <button class="btn" id="addRawBtn">Add Raw M3U</button>
+      </div>
+    </div>
+
+    <div id="moviesPage" class="page hidden">
+      <h2>🎬 Movies / FTP — মুভি সেকশন</h2>
+      <div class="sub">FTP বা HTTP মুভি লিংক যোগ করুন — ইউজার প্যানেলে <b>🎬 Movies</b> ট্যাব খুলবে। পাসওয়ার্ড লুকানো থাকবে।</div>
+      <div id="movieList"></div>
+      <div class="add-form">
+        <h4>➕ নতুন মুভি যোগ করুন</h4>
+        <div class="banner" style="margin-bottom:12px">
+          💡 <b>FTP:</b> <code>ftp://user:pass@host/movies/film.mp4</code><br>
+          <b>HTTP FTP:</b> <code>http://ftp.example.com/movies/xxx.mp4</code><br>
+          HTTP মুভি সব ব্রাউজারে চলবে। FTP হলে VLC তে খুলতে বলবে।
         </div>
-        <div class="f-row">
-          <input id="addUrl" type="url" placeholder="M3U URL — https://example.com/list.m3u" />
-          <button class="btn primary" id="addUrlBtn">Add URL</button>
-        </div>
-        <div class="f-row" style="align-items:center">
-          <textarea id="addRaw" rows="4" placeholder="…বা সরাসরি M3U টেক্সট পেস্ট করুন (raw)"></textarea>
-        </div>
-        <button class="btn" id="addRawBtn">Add Text (raw) Playlist</button>
+        <div class="f-row"><input id="movName" type="text" placeholder="মুভির নাম (Avatar 2)" /><input id="movGroup" type="text" placeholder="ক্যাটাগরি (Action/Bangla/Hollywood)" /></div>
+        <div class="f-row"><input id="movLogo" type="url" placeholder="পোস্টার URL (ঐচ্ছিক)" /></div>
+        <div class="f-row"><input id="movUrl" type="text" placeholder="মুভি URL — https://.../movie.mp4 বা ftp://..." /><button class="btn primary" id="addMovBtn">🎬 Add Movie</button></div>
       </div>
     </div>
 
     <div id="settingsPage" class="page hidden">
-      <h2>⚙️ সেটিংস</h2>
-      <div class="sub">পাসওয়ার্ড বদল, ও পাবলিক অ্যাক্সেস তথ্য</div>
-
+      <h2>⚙️ সেটিংস — পাসওয়ার্ড লুকানো</h2>
+      <div class="sub">পাসওয়ার্ড সব জায়গায় •••• হিসেবে লুকানো — চোখে ক্লিক করলে দেখা যাবে</div>
       <div class="panel">
-        <h3>🔑 অ্যাডমিন পাসওয়ার্ড বদলান</h3>
-        <div class="f-row"><input type="password" id="curPass" placeholder="বর্তমান পাসওয়ার্ড" /></div>
-        <div class="f-row"><input type="password" id="newPass" placeholder="নতুন পাসওয়ার্ড (মিন ৪ অক্ষর)" /></div>
-        <div class="f-row"><input type="password" id="conPass" placeholder="নতুন পাসওয়ার্ড আবার" /></div>
+        <h3>🔑 অ্যাডমিন পাসওয়ার্ড বদলান (লুকানো)</h3>
+        <div id="envPassNote" class="banner hidden" style="margin-bottom:12px"></div>
+        <div class="f-row"><div class="pw-wrap"><input type="password" id="curPass" placeholder="বর্তমান পাসওয়ার্ড" /><button type="button" class="pw-toggle" data-target="curPass">👁️</button></div></div>
+        <div class="f-row"><div class="pw-wrap"><input type="password" id="newPass" placeholder="নতুন পাসওয়ার্ড (মিন ৪ অক্ষর)" /><button type="button" class="pw-toggle" data-target="newPass">👁️</button></div></div>
+        <div class="f-row"><div class="pw-wrap"><input type="password" id="conPass" placeholder="নতুন পাসওয়ার্ড আবার" /><button type="button" class="pw-toggle" data-target="conPass">👁️</button></div></div>
         <button class="btn primary" id="chgPassBtn">পাসওয়ার্ড বদলান</button>
         <div class="small muted" id="passMsg" style="margin-top:8px"></div>
-      </div>
-
-      <div class="panel">
-        <h3>🌍 লোকাল নেটওয়ার্কের বাইরে (ইন্টারনেটে) ফ্রি দেখানো</h3>
-        <p class="small muted mb10">আপনার কম্পিউটারে সার্ভার চলছে — নিচের যেকোনো একটা চালালে একটা <b>ফ্রি পাবলিক লিংক</b> পাবেন যেটা যেকোনো জায়গা থেকে খুলবে:</p>
-        <p class="small mb10"><b>১) Cloudflare (সবচেয়ে নির্ভরযোগ্য, ফ্রি):</b> খুলুন <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/" target="_blank">cloudflared ডাউনলোড</a> → <code>cloudflared tunnel --url http://localhost:8080</code></p>
-        <p class="small mb10"><b>২) localtunnel (Node থাকলেই — সহজতম):</b> <code>npx -y localtunnel --port 8080</code></p>
-        <p class="small"><b>৩) Render ফ্রি হোস্টিং:</b> বিস্তারিত <code>README.md</code>-তে আছে।</p>
-        <p class="small muted" style="margin-top:10px;border-top:1px solid var(--line);padding-top:9px">⚠️ পাবলিক লিংকে দিলে সবাই ঢুকতে পারবে দেখতে — তাই <b>অবশ্যই পাসওয়ার্ড বদলে নিন</b> আর ইউজাররা কোনো সেটিং দেখবে না (শুধু টিভি পেজ)।</p>
       </div>
     </div>
   </main>
@@ -228,25 +219,33 @@ tr:last-child td{border-bottom:none}
 
 <div class="toast hidden" id="toast"></div>
 
-<!-- EDIT SOURCE MODAL -->
 <div class="modal-backdrop hidden" id="editModal">
   <div class="modal">
     <h3>✏️ সোর্স এডিট</h3>
     <div class="f-row"><input type="text" id="editName" placeholder="নাম" /></div>
     <div class="f-row"><input type="url" id="editUrl" placeholder="M3U URL" /></div>
-    <div class="mb10"><textarea id="editRaw" rows="4" placeholder="raw M3U টেক্সট (type raw হলে)"></textarea></div>
-    <div style="display:flex;gap:9px;justify-content:flex-end">
-      <button class="btn" id="editCancel">বাতিল</button>
-      <button class="btn primary" id="editSave">সেভ</button>
-    </div>
+    <div class="mb10"><textarea id="editRaw" rows="4" placeholder="raw M3U টেক্সট"></textarea></div>
+    <div style="display:flex;gap:9px;justify-content:flex-end"><button class="btn" id="editCancel">বাতিল</button><button class="btn primary" id="editSave">সেভ</button></div>
     <div class="err small" id="editErr" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="editMovModal">
+  <div class="modal">
+    <h3>✏️ মুভি এডিট</h3>
+    <div class="f-row"><input type="text" id="editMovName" placeholder="মুভির নাম" /></div>
+    <div class="f-row"><input type="text" id="editMovGroup" placeholder="ক্যাটাগরি" /></div>
+    <div class="f-row"><input type="url" id="editMovLogo" placeholder="পোস্টার URL" /></div>
+    <div class="f-row"><input type="text" id="editMovUrl" placeholder="মুভি URL" /></div>
+    <div style="display:flex;gap:9px;justify-content:flex-end"><button class="btn" id="editMovCancel">বাতিল</button><button class="btn primary" id="editMovSave">সেভ</button></div>
+    <div class="err small" id="editMovErr" style="margin-top:8px"></div>
   </div>
 </div>
 
 <script>
 (function(){
   'use strict';
-  const $=(s)=>document.querySelector(s);
+  const $=s=>document.querySelector(s);
   const TOK_KEY='mytv.admin.token';
   function token(){ try{return sessionStorage.getItem(TOK_KEY)||''}catch(e){return ''} }
   function setTok(t){ try{ if(t) sessionStorage.setItem(TOK_KEY,t); else sessionStorage.removeItem(TOK_KEY);}catch(e){} }
@@ -263,64 +262,62 @@ tr:last-child td{border-bottom:none}
   function toast(m,ms){ const t=$('#toast'); t.textContent=m; t.classList.remove('hidden'); clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.add('hidden'),ms||3000); }
   function logout(){ setTok(null); $('#appWrap').classList.add('hidden'); $('#loginWrap').classList.remove('hidden'); }
 
-  /* ---------- boot: check session ---------- */
+  // password hide/show
+  document.querySelectorAll('.pw-toggle').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const inp=document.getElementById(btn.dataset.target);
+      if(!inp) return;
+      inp.type= inp.type==='password' ? 'text' : 'password';
+      btn.textContent= inp.type==='password' ? '👁️' : '🙈';
+    });
+  });
+
   (async function init(){
     const st=await api('/api/admin/status',{method:'GET'});
     if(st && st.admin){ showApp(); } else { showLogin(st); }
   })();
+  function showLogin(st){ $('#loginWrap').classList.remove('hidden'); if(st && st.defaultPassword) $('#passNote').textContent='(এখনো ডিফল্ট — ঢুকে বদলে নিন)'; }
+  function showApp(){ $('#loginWrap').classList.add('hidden'); $('#appWrap').classList.remove('hidden'); switchTab('dash'); }
 
-  function showLogin(st){
-    $('#loginWrap').classList.remove('hidden');
-    if(st && st.defaultPassword) $('#passNote').textContent='(এখনো ডিফল্ট পাসওয়ার্ড আছে — ঢুকে বদলে নিন)';
-  }
-  function showApp(){
-    $('#loginWrap').classList.add('hidden');
-    $('#appWrap').classList.remove('hidden');
-    switchTab('dash');
-  }
-
-  $('#loginForm').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    $('#loginErr').textContent='';
+  $('#loginForm').addEventListener('submit', async e=>{
+    e.preventDefault(); $('#loginErr').textContent='';
     const btn=$('#loginBtn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span>Checking…';
     const j=await api('/api/admin/login',{method:'POST',body:JSON.stringify({password:$('#loginPass').value})});
     btn.disabled=false; btn.textContent='Login →';
     if(j && j.token){ setTok(j.token); toast('✅ সফল লগইন!'); showApp(); }
-    else $('#loginErr').textContent='❌ '+((j&&j.error)||'ভুল পাসওয়ার্ড');
+    else $('#loginErr').textContent='❌ '+(j.error||'ভুল পাসওয়ার্ড');
   });
   $('#logoutBtn').addEventListener('click', async ()=>{ await api('/api/admin/logout',{method:'POST',body:'{}'}); logout(); });
 
-  /* ---------- tabs ---------- */
-  const tabs={dash:$('#dashPage'),sources:$('#sourcesPage'),settings:$('#settingsPage')};
+  const tabs={dash:$('#dashPage'),sources:$('#sourcesPage'),movies:$('#moviesPage'),settings:$('#settingsPage')};
   function switchTab(name){
-    for(const k in tabs) tabs[k].classList.toggle('hidden', k!==name);
+    for(const k in tabs) if(tabs[k]) tabs[k].classList.toggle('hidden', k!==name);
     document.querySelectorAll('.nav [data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
-    if(name==='dash'){ loadDashboard(); tmr=setInterval(loadDashboard,10000); }
-    else clearInterval(tmr);
+    if(name==='dash'){ loadDashboard(); tmr=setInterval(loadDashboard,10000); } else clearInterval(tmr);
     if(name==='sources') loadSources();
+    if(name==='movies') loadMovies();
     if(name==='settings') checkDefPass();
   }
   document.querySelectorAll('.nav [data-tab]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
   $('#quickSrcBtn').addEventListener('click',()=>switchTab('sources'));
+  const qm=$('#quickMovBtn'); if(qm) qm.addEventListener('click',()=>switchTab('movies'));
 
-  /* ---------- dashboard ---------- */
   async function loadDashboard(){
     try{
       const st=await api('/api/stats',{method:'GET'});
       const ch=await fetch('/api/channels').then(r=>r.json()).catch(()=>null);
+      const mv=await api('/api/movie-source',{method:'GET'}).catch(()=>null);
       if(st && st.ok){
         $('#statLive').textContent=st.live.total;
-        $('#dashSub').innerHTML='এখন কে কে লাইভ দেখছে — <span class="muted small">'+ (st.server?('সার্ভার চালু '+Math.floor(st.server.uptimeSec/60)+' মিনিট'):'') +'</span> · প্রতি ১০ সেকেন্ডে অটো-আপডেট';
-        renderLiveTable(st.live);
-        renderSrcView(st.live);
+        $('#dashSub').innerHTML='এখন কে কে লাইভ দেখছে — <span class="muted small">'+ (st.server?('সার্ভার চালু '+Math.floor(st.server.uptimeSec/60)+' মিনিট'):'') +'</span> · প্রতি ১০ সেকেন্ডে আপডেট';
+        renderLiveTable(st.live); renderSrcView(st.live);
       }
       if(ch && ch.ok){
         $('#statCh').textContent=ch.channels.length;
-        const srcs=ch.sources||[];
-        $('#statSrcOn').textContent=srcs.filter(s=>s.reachable).length;
-        $('#statSrcBad').textContent=srcs.filter(s=>!s.reachable).length;
+        const srcs=ch.sources||[]; $('#statSrcBad').textContent=srcs.filter(s=>!s.reachable).length;
         renderChStatus(srcs);
       }
+      if(mv && mv.ok){ $('#statMov').textContent=mv.movies.length; }
     }catch(e){}
   }
   function renderLiveTable(live){
@@ -328,124 +325,149 @@ tr:last-child td{border-bottom:none}
     if(!live.byChannel.length){ w.innerHTML='<p class="muted small">👀 কেউ এখনো লাইভ দেখছে না — ইউজার টিভি পেজে একটা চ্যানেল খুললেই এখানে দেখা যাবে।</p>'; return; }
     const max=live.byChannel[0].viewers;
     w.innerHTML='<table><thead><tr><th>চ্যানেল</th><th style="width:40%">দর্শক</th><th>সংখ্যা</th></tr></thead><tbody>'+
-      live.byChannel.map(r=>'<tr><td>'+esc(r.channel)+'</td><td><div class="bar-holder"><div class="bar" style="width:'+Math.max(6,Math.round(r.viewers/max*100))+'%"></div></div></td><td><b>'+r.viewers+'</b></td></tr>').join('')+
-      '</tbody></table>';
+      live.byChannel.map(r=>'<tr><td>'+esc(r.channel)+'</td><td><div class="bar-holder"><div class="bar" style="width:'+Math.max(6,Math.round(r.viewers/max*100))+'%"></div></div></td><td><b>'+r.viewers+'</b></td></tr>').join('')+'</tbody></table>';
   }
   function renderSrcView(live){
     const w=$('#srcViewWrap');
     if(!live.bySource.length){ w.innerHTML='<p class="muted small">—</p>'; return; }
-    w.innerHTML='<table><thead><tr><th>সোর্স</th><th>দর্শক</th></tr></thead><tbody>'+
-      live.bySource.map(r=>'<tr><td>'+esc(r.source)+'</td><td><b>'+r.viewers+'</b></td></tr>').join('')+'</tbody></table>';
+    w.innerHTML='<table><thead><tr><th>সোর্স</th><th>দর্শক</th></tr></thead><tbody>'+live.bySource.map(r=>'<tr><td>'+esc(r.source)+'</td><td><b>'+r.viewers+'</b></td></tr>').join('')+'</tbody></table>';
   }
   function renderChStatus(srcs){
     const w=$('#chStatusWrap');
     if(!srcs.length){ w.innerHTML='<p class="muted small">কোনো সোর্স নেই।</p>'; return; }
     w.innerHTML=srcs.map(s=>'<div class="rowline"><span class="rname">'+esc(s.name)+'</span><span>'+
-      (s.reachable?'<span class="chip on">OK · '+s.count+' চ্যানেল</span>':'<span class="chip bad">✗ '+esc(s.reason||'প্রবেশ করা যাচ্ছে না')+'</span>')+'</span></div>').join('');
+      (s.reachable?'<span class="chip on">OK · '+s.count+' চ্যানেল</span>':'<span class="chip bad">✗ '+esc(s.reason||'unreachable')+'</span>')+'</span></div>').join('');
   }
   $('#refreshListBtn').addEventListener('click', async ()=>{
-    const b=$('#refreshListBtn'); b.disabled=true; b.innerHTML='<span class="spin"></span>তালিকা আনা হচ্ছে…';
-    // force cache refresh by fetching channels after waiting for parse (server caches 10 min; disable cache not exposed—refresh reloads anyway)
-    await fetch('/api/channels',{cache:'no-store'}).then(r=>r.json());
-    await loadDashboard();
-    b.disabled=false; b.textContent='🔄 রিফ্রেশ / নতুন করে তালিকা আনা';
-    toast('✅ সোর্সগুলো আবার লোড হয়েছে');
+    const b=$('#refreshListBtn'); b.disabled=true; b.innerHTML='<span class="spin"></span>লোড হচ্ছে…';
+    await fetch('/api/channels',{cache:'no-store'}).then(r=>r.json()); await loadDashboard();
+    b.disabled=false; b.textContent='🔄 রিফ্রেশ'; toast('✅ রিফ্রেশ হয়েছে');
   });
 
-  /* ---------- sources page ---------- */
   async function loadSources(){
-    const j=await api('/api/source',{method:'GET'});
-    const w=$('#srcList');
+    const j=await api('/api/source',{method:'GET'}); const w=$('#srcList');
     if(!j.ok){ w.innerHTML='<p class="err">লোড করা যায়নি</p>'; return; }
     if(!j.sources.length){ w.innerHTML='<p class="muted">কোনো সোর্স নেই — নিচে যোগ করুন।</p>'; return; }
     w.innerHTML=j.sources.map(s=>{
-      const st=s.enabled?('<span class="chip on">চালু</span>')
-        :('<span class="chip off">অক্ষম</span>');
+      const st=s.enabled?'<span class="chip on">চালু</span>':'<span class="chip off">অক্ষম</span>';
       const bd=s.builtin?'<span class="chip">বিল্ট-ইন</span>':'';
-      return '<div class="src-item" data-id="'+esc(s.id)+'">'+
-        '<div class="src-top"><span class="src-name">'+esc(s.name)+'</span>'+st+bd+
-        '<span class="chip">'+esc(s.type==='raw'?'raw':'URL')+'</span></div>'+
-        (s.url?'<div class="src-url">'+esc(s.url)+'</div>':'')+
-        '<div class="src-actions">'+
-          '<button class="btn sm act-toggle">'+(s.enabled?'⏸ অক্ষম করো':'▶️ চালু করো')+'</button>'+
-          '<button class="btn sm act-edit">✏️ এডিট</button>'+
-          '<button class="btn sm danger act-del">🗑 মুছুন</button>'+
-        '</div></div>';
+      return '<div class="src-item" data-id="'+esc(s.id)+'"><div class="src-top"><span class="src-name">'+esc(s.name)+'</span>'+st+bd+
+        '<span class="chip">'+esc(s.type==='raw'?'raw':'URL')+'</span></div>'+(s.url?'<div class="src-url">'+esc(s.url)+'</div>':'')+
+        '<div class="src-actions"><button class="btn sm act-toggle">'+(s.enabled?'⏸ অক্ষম':'▶️ চালু')+'</button><button class="btn sm act-edit">✏️ এডিট</button><button class="btn sm danger act-del">🗑 মুছুন</button></div></div>';
     }).join('');
     w.querySelectorAll('.act-toggle').forEach(b=>b.addEventListener('click',async()=>{
-      const id=b.closest('.src-item').dataset.id;
-      const src=j.sources.find(s=>s.id===id);
+      const id=b.closest('.src-item').dataset.id; const src=j.sources.find(s=>s.id===id);
       const r=await api('/api/source',{method:'POST',body:JSON.stringify({action:'toggle',id,enabled:!src.enabled})});
-      if(r.ok){ toast(src.enabled?'সোর্স অক্ষম করা হলো':'সোর্স চালু হলো'); loadSources(); }
+      if(r.ok){ toast(src.enabled?'অক্ষম হলো':'চালু হলো'); loadSources(); }
     }));
     w.querySelectorAll('.act-del').forEach(b=>b.addEventListener('click',async()=>{
-      const id=b.closest('.src-item').dataset.id;
-      if(!confirm('এই সোর্সটা মুছে ফেলবেন?')) return;
+      const id=b.closest('.src-item').dataset.id; if(!confirm('মুছে ফেলবেন?')) return;
       const r=await api('/api/source',{method:'POST',body:JSON.stringify({action:'delete',id})});
       if(r.ok){ toast('মুছে ফেলা হলো'); loadSources(); }
     }));
     w.querySelectorAll('.act-edit').forEach(b=>b.addEventListener('click',()=>{
-      const id=b.closest('.src-item').dataset.id;
-      const src=j.sources.find(s=>s.id===id);
-      openEdit(src);
+      const id=b.closest('.src-item').dataset.id; const src=j.sources.find(s=>s.id===id); openEdit(src);
     }));
   }
-
   let editingId=null;
   function openEdit(src){
-    editingId=src.id;
-    $('#editName').value=src.name||'';
-    $('#editUrl').value=src.url||'';
-    $('#editRaw').value='';
-    $('#editRaw').disabled = src.builtin;
-    $('#editErr').textContent= src.builtin?'⚠️ বিল্ট-ইন ডেমো সোর্স — কেবল নাম বদলানো যাবে।':'';
-    $('#editModal').classList.remove('hidden');
+    editingId=src.id; $('#editName').value=src.name||''; $('#editUrl').value=src.url||''; $('#editRaw').value=''; $('#editRaw').disabled=src.builtin;
+    $('#editErr').textContent= src.builtin?'⚠️ বিল্ট-ইন — কেবল নাম বদলানো যাবে।':''; $('#editModal').classList.remove('hidden');
   }
   $('#editCancel').addEventListener('click',()=>$('#editModal').classList.add('hidden'));
-  $('#editModal').addEventListener('click',(e)=>{ if(e.target===$('#editModal')) $('#editModal').classList.add('hidden'); });
+  $('#editModal').addEventListener('click',e=>{ if(e.target===$('#editModal')) $('#editModal').classList.add('hidden'); });
   $('#editSave').addEventListener('click',async()=>{
     const body={action:'update',id:editingId,name:$('#editName').value};
     if($('#editUrl').value.trim()) body.url=$('#editUrl').value.trim();
     if($('#editRaw').value.trim()) body.raw=$('#editRaw').value;
     const r=await api('/api/source',{method:'POST',body:JSON.stringify(body)});
-    if(r.ok){ $('#editModal').classList.add('hidden'); toast('✅ সেভ হয়েছে'); loadSources(); }
-    else $('#editErr').textContent='❌ '+(r.error||'ব্যর্থ');
+    if(r.ok){ $('#editModal').classList.add('hidden'); toast('✅ সেভ'); loadSources(); } else $('#editErr').textContent='❌ '+(r.error||'ব্যর্থ');
   });
-
   async function addSource(payload,label){
     const r=await api('/api/source',{method:'POST',body:JSON.stringify(payload)});
-    if(r.ok){ toast(label+' ✅'); loadSources(); }
-    else toast('❌ '+((r&&r.error)||'ব্যর্থ'));
+    if(r.ok){ toast(label+' ✅'); loadSources(); } else toast('❌ '+(r.error||'ব্যর্থ'));
   }
   $('#addUrlBtn').addEventListener('click',()=>{
     const url=$('#addUrl').value.trim(); const name=$('#addName').value.trim();
     if(!url){ toast('URL দিন'); return; }
-    addSource({name:name||'New playlist',url},'প্লেলিস্ট যোগ হয়েছে');
-    $('#addUrl').value=''; $('#addName').value='';
+    addSource({name:name||'New playlist',url},'প্লেলিস্ট যোগ'); $('#addUrl').value=''; $('#addName').value='';
   });
   $('#addRawBtn').addEventListener('click',()=>{
     const raw=$('#addRaw').value.trim(); const name=$('#addName').value.trim();
-    if(!raw){ toast('M3U টেক্সট দিন'); return; }
-    addSource({name:name||'Pasted playlist',raw},'প্লেলিস্ট যোগ হয়েছে');
-    $('#addRaw').value=''; $('#addName').value='';
+    if(!raw){ toast('M3U দিন'); return; }
+    addSource({name:name||'Pasted playlist',raw},'প্লেলিস্ট যোগ'); $('#addRaw').value=''; $('#addName').value='';
   });
 
-  /* ---------- settings ---------- */
+  // Movies
+  async function loadMovies(){
+    const j=await api('/api/movie-source',{method:'GET'}); const w=$('#movieList');
+    if(!j.ok){ w.innerHTML='<p class="err">লোড করা যায়নি — login করুন</p>'; return; }
+    if(!j.movies.length){ w.innerHTML='<p class="muted">কোনো মুভি নেই — নিচে FTP লিংক যোগ করুন, ইউজার প্যানেলে Movies ট্যাব খুলবে।</p>'; return; }
+    w.innerHTML=j.movies.map(m=>{
+      const st=m.enabled?'<span class="chip on">চালু</span>':'<span class="chip off">অক্ষম</span>';
+      return '<div class="src-item" data-id="'+esc(m.id)+'"><div class="src-top"><span class="src-name">🎬 '+esc(m.name)+'</span>'+st+
+        '<span class="chip">'+esc(m.group||'Movies')+'</span></div><div class="src-url">'+esc(m.url)+'</div>'+
+        (m.logo?'<div class="src-url">Poster: '+esc(m.logo)+'</div>':'')+
+        '<div class="src-actions"><button class="btn sm mov-toggle">'+(m.enabled?'⏸ অক্ষম':'▶️ চালু')+'</button><button class="btn sm mov-edit">✏️ এডিট</button><button class="btn sm danger mov-del">🗑 মুছুন</button></div></div>';
+    }).join('');
+    w.querySelectorAll('.mov-toggle').forEach(b=>b.addEventListener('click',async()=>{
+      const id=b.closest('.src-item').dataset.id; const mov=j.movies.find(m=>m.id===id);
+      const r=await api('/api/movie-source',{method:'POST',body:JSON.stringify({action:'toggle',id,enabled:!mov.enabled})});
+      if(r.ok){ toast(mov.enabled?'মুভি অক্ষম':'মুভি চালু'); loadMovies(); }
+    }));
+    w.querySelectorAll('.mov-del').forEach(b=>b.addEventListener('click',async()=>{
+      const id=b.closest('.src-item').dataset.id; if(!confirm('মুভি মুছে ফেলবেন?')) return;
+      const r=await api('/api/movie-source',{method:'POST',body:JSON.stringify({action:'delete',id})});
+      if(r.ok){ toast('মুছে ফেলা হলো'); loadMovies(); }
+    }));
+    w.querySelectorAll('.mov-edit').forEach(b=>b.addEventListener('click',()=>{
+      const id=b.closest('.src-item').dataset.id; const mov=j.movies.find(m=>m.id===id); openMovEdit(mov);
+    }));
+  }
+  let editingMovId=null;
+  function openMovEdit(m){
+    editingMovId=m.id; $('#editMovName').value=m.name||''; $('#editMovGroup').value=m.group||''; $('#editMovLogo').value=m.logo||''; $('#editMovUrl').value=m.url||''; $('#editMovErr').textContent=''; $('#editMovModal').classList.remove('hidden');
+  }
+  $('#editMovCancel').addEventListener('click',()=>$('#editMovModal').classList.add('hidden'));
+  $('#editMovModal').addEventListener('click',e=>{ if(e.target===$('#editMovModal')) $('#editMovModal').classList.add('hidden'); });
+  $('#editMovSave').addEventListener('click',async()=>{
+    const body={action:'update',id:editingMovId,name:$('#editMovName').value,group:$('#editMovGroup').value,logo:$('#editMovLogo').value,url:$('#editMovUrl').value};
+    const r=await api('/api/movie-source',{method:'POST',body:JSON.stringify(body)});
+    if(r.ok){ $('#editMovModal').classList.add('hidden'); toast('✅ মুভি সেভ'); loadMovies(); } else $('#editMovErr').textContent='❌ '+(r.error||'ব্যর্থ');
+  });
+  $('#addMovBtn').addEventListener('click',async()=>{
+    const name=$('#movName').value.trim(); const group=$('#movGroup').value.trim(); const logo=$('#movLogo').value.trim(); const url=$('#movUrl').value.trim();
+    if(!url){ toast('মুভি URL দিন (http/https/ftp)'); return; }
+    const r=await api('/api/movie-source',{method:'POST',body:JSON.stringify({name,group,logo,url})});
+    if(r.ok){ toast('🎬 মুভি যোগ হয়েছে — User panel এ Movies ট্যাব দেখুন'); loadMovies(); $('#movName').value=''; $('#movUrl').value=''; }
+    else toast('❌ '+(r.error||'ব্যর্থ'));
+  });
+
   async function checkDefPass(){
-    const st=await api('/api/admin/status',{method:'GET'});
-    $('#defPassBanner').classList.toggle('hidden',!(st&&st.defaultPassword));
+    const st=await api('/api/admin/status',{method:'GET'}); if(!st) return;
+    $('#defPassBanner').classList.toggle('hidden',!(st.defaultPassword));
+    const envNote=$('#envPassNote');
+    if(envNote){
+      if(st.envPasswordSet){ envNote.innerHTML='🔒 <b>Render-এ ADMIN_PASSWORD env সেট আছে</b> — বদলালে এই ইন্সট্যান্সে কাজ করবে, কিন্তু রিস্টার্টে env-এ ফিরে যাবে। স্থায়ীভাবে বদলাতে <b>Render Dashboard → Environment → ADMIN_PASSWORD</b> বদলান।'; envNote.classList.remove('hidden'); }
+      else envNote.classList.add('hidden');
+    }
   }
   $('#chgPassBtn').addEventListener('click',async()=>{
     const msg=$('#passMsg'); msg.textContent=''; msg.className='small muted';
     const cur=$('#curPass').value,nw=$('#newPass').value,co=$('#conPass').value;
-    if(nw!==co){ msg.textContent='❌ নতুন পাসওয়ার্ড দুইবার মেলেনি'; msg.classList.add('err'); return; }
-    if(nw.length<4){ msg.textContent='❌ ন্যূনতম ৪ অক্ষর'; msg.classList.add('err'); return; }
+    if(nw!==co){ msg.textContent='❌ নতুন পাসওয়ার্ড মেলেনি'; msg.classList.add('err'); return; }
+    if(nw.length<4){ msg.textContent='❌ মিন ৪ অক্ষর'; msg.classList.add('err'); return; }
+    const btn=$('#chgPassBtn'); const old=btn.textContent; btn.disabled=true; btn.textContent='⏳ বদলানো হচ্ছে…';
     const r=await api('/api/admin/password',{method:'POST',body:JSON.stringify({current:cur,new:nw})});
-    if(r.ok){ msg.textContent='✅ পাসওয়ার্ড বদলে গেছে!'; msg.className='small ok'; $('#curPass').value=$('#newPass').value=$('#conPass').value=''; checkDefPass(); toast('✅ পাসওয়ার্ড বদলানো হয়েছে'); }
-    else { msg.textContent='❌ '+(r.error||'ব্যর্থ'); msg.classList.add('err'); }
+    btn.disabled=false; btn.textContent=old;
+    if(r && r.ok){
+      let txt='✅ পাসওয়ার্ড বদলে গেছে! নতুনটা দিয়ে পরেরবার লগইন করুন।'; if(r.warning) txt+='\n\n⚠️ '+r.warning;
+      msg.textContent=txt; msg.className='small ok'; msg.style.whiteSpace='pre-wrap';
+      $('#curPass').value=$('#newPass').value=$('#conPass').value=''; checkDefPass(); toast('✅ পাসওয়ার্ড বদলেছে');
+    } else { msg.textContent='❌ '+(r.error||'ব্যর্থ'); msg.classList.add('err'); }
   });
 
-  function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');}
 })();
 </script>
 </body>
