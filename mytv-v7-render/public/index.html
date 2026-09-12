@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MyTV v7.0 • Beautiful Links</title>
+<link rel="stylesheet" href="style.css?v=7.0" />
+</head>
+<body>
+  <div class="bg"></div>
+  <header class="topbar">
+    <div class="brand" onclick="App.goHome()">
+      <div class="brand-icon">📺</div>
+      <div class="brand-text">
+        <div class="brand-name">MyTV <span>v7.0</span></div>
+        <div class="brand-sub"><span class="dot"></span><span id="liveCount">0</span> Live • <span id="movieCount">0</span> Links</div>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <div class="search-box">
+        <span>🔍</span>
+        <input id="searchInput" type="search" placeholder="Search channel / link..." />
+        <button id="clearSearch" class="clear hidden">✕</button>
+      </div>
+      <div class="filters">
+        <button class="fbtn active" data-ftp="all">All</button>
+        <button class="fbtn" data-ftp="live">Live</button>
+        <button class="fbtn" data-ftp="web">Web</button>
+      </div>
+    </div>
+    <a href="/admin" class="admin-btn">🛡️</a>
+  </header>
+
+  <nav class="tabs">
+    <button class="mtab active" data-mtab="tv">📺 Live TV</button>
+    <button class="mtab" data-mtab="movies">🔗 Movie Links</button>
+    <span class="hint">⚡ No Buffer • Just Click</span>
+  </nav>
+
+  <section class="player hidden" id="playerWrap">
+    <div class="player-box">
+      <video id="tvVideo" playsinline controls preload="auto"></video>
+      <div class="player-info">
+        <span class="live" id="playerBadge">LIVE</span>
+        <h2 id="playerTitle">—</h2>
+        <p id="playerGroup"></p>
+        <div class="player-actions">
+          <button id="shareBtn" class="pbtn">↗️ Share</button>
+          <button id="closePlayerBtn" class="pbtn">✕ Close</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="cat-nav" id="catNav"><div class="cat-scroll" id="catChips"></div></nav>
+
+  <main class="main" id="tvMain">
+    <div class="head"><h3>⚡ Live Channels</h3><span id="gridCount" class="pill">0</span></div>
+    <div class="grid" id="channelGrid"></div>
+    <div class="empty hidden" id="emptyState"><p>No channels</p></div>
+  </main>
+
+  <main class="main hidden" id="moviesMain">
+    <div class="links-head">
+      <h3>🔗 Premium Movie Links</h3>
+      <p>Click any card — opens instantly in new tab</p>
+      <span id="movieGridCount" class="pill">0</span>
+    </div>
+    <div class="links-grid" id="movieListView"></div>
+    <div class="empty hidden" id="movieEmpty"><p>No links — add in Admin</p></div>
+  </main>
+
+  <footer>MyTV v7.0 • Beautiful • <a href="/admin">Admin</a></footer>
+  <div id="toast" class="toast hidden"></div>
+  <script src="hls.min.js"></script>
+  <script src="app.js?v=7.0"></script>
+</body>
+</html>

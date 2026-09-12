@@ -1,0 +1,13 @@
+{
+  "name": "mytv-player",
+  "version": "2.0.0",
+  "description": "Live TV channel web player — M3U playlist loader with admin panel, live viewer counter and HLS proxy (zero dependencies).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
