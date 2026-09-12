@@ -23,7 +23,7 @@ const DATA_DIR = path.join(ROOT, 'data');
 const STATE_FILE = path.join(DATA_DIR, 'state.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 
-const APP_VERSION = '5.0'; // Unique UI, FTP functional, instant play, small icons
+const APP_VERSION = '7.0'; // Beautiful unique links - instant open, 7 web only
 
 // ---------------------------------------------------------------------------
 // Admin auth (in-memory token store) + viewer presence store
@@ -104,14 +104,12 @@ const DEMO_RAW = [
 
 function defaultState() {
   const sources = [];
-  // Primary: curated working channels — shown first, mobile-friendly, instant play
   sources.push({
     id: 'verified',
     name: '✅ Verified Working — Bangladesh + International (20+)',
     type: 'raw',
     raw: VERIFIED_RAW,
   });
-  // Bangladesh — iptv-org (41 channels, many work via proxy)
   sources.push({
     id: 'bd',
     name: '🇧🇩 Bangladesh — iptv-org (41+)',
@@ -119,7 +117,6 @@ function defaultState() {
     url: IPTV_ORG_BD,
     enabled: true,
   });
-  // Bangladesh Extra — Mrgify BDIX mix (180+ channels, aynaott/sonarbangla/tsports work globally)
   sources.push({
     id: 'bd-mix',
     name: '🇧🇩 Bangladesh Mix — Mrgify (180+ inc. T Sports, Deepto, MyTV)',
@@ -127,7 +124,6 @@ function defaultState() {
     url: 'https://raw.githubusercontent.com/abusaeeidx/Mrgify-BDIX-IPTV/main/playlist.m3u',
     enabled: true,
   });
-  // India — keep disabled by default (700+), user can enable from admin if needed
   sources.push({
     id: 'in',
     name: '🇮🇳 India — iptv-org (700+)',
@@ -144,39 +140,62 @@ function defaultState() {
   });
   applyEnvSources(sources);
 
-  // Standard Movies — always working HTTP + FTP demo
-  // These are built-in, so even on Render free tier they never disappear
+  // ONLY Web Movie Sites - unique, no old Demo/FTP (as user requested: remove all previous)
   const movies = [
     {
-      id: 'mov-bbb',
-      name: 'Big Buck Bunny — Demo Movie (HD)',
-      group: 'Demo',
-      logo: 'https://peach.blender.org/wp-content/uploads/title_anouncement.jpg',
-      url: 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4',
+      id: 'web-ridomovies',
+      name: 'RidoMovies — HD Movies & Series',
+      group: 'Web Movies',
+      logo: 'https://www.google.com/s2/favicons?domain=ridomovies.su&sz=128',
+      url: 'https://ridomovies.su/home-rd1',
       enabled: true,
     },
     {
-      id: 'mov-sintel',
-      name: 'Sintel — Open Movie (HD)',
-      group: 'Demo',
-      logo: 'https://durian.blender.org/wp-content/uploads/2010/05/sintel_poster.jpg',
-      url: 'https://test-videos.co.uk/vids/sintel/mp4/h264/720/Sintel_720_10s_1MB.mp4',
+      id: 'web-movieplex',
+      name: 'MoviePlex — Free Streaming',
+      group: 'Web Movies',
+      logo: 'https://www.google.com/s2/favicons?domain=movieplex.online&sz=128',
+      url: 'https://movieplex.online/',
       enabled: true,
     },
     {
-      id: 'mov-jelly',
-      name: 'Jellyfish — Nature Demo (HD)',
-      group: 'Demo',
-      logo: '',
-      url: 'https://test-videos.co.uk/vids/jellyfish/mp4/h264/720/Jellyfish_720_10s_1MB.mp4',
+      id: 'web-flixbay',
+      name: 'TheFlixBay — Movies & TV',
+      group: 'Web Movies',
+      logo: 'https://www.google.com/s2/favicons?domain=theflixbay.com&sz=128',
+      url: 'https://theflixbay.com/',
       enabled: true,
     },
     {
-      id: 'mov-ftp-standard',
-      name: 'FTP Standard — Big Buck Bunny (FTP)',
-      group: 'FTP',
-      logo: '',
-      url: 'ftp://ftp.nluug.nl/pub/graphics/blender/demo/movies/BBB/bbb_sunflower_1080p_30fps_normal.mp4',
+      id: 'web-redflix',
+      name: 'RedFlix — HD Movies',
+      group: 'Web Movies',
+      logo: 'https://www.google.com/s2/favicons?domain=redflix.one&sz=128',
+      url: 'https://redflix.one/',
+      enabled: true,
+    },
+    {
+      id: 'web-moviesjoy',
+      name: 'MoviesJoy — Watch Free',
+      group: 'Web Movies',
+      logo: 'https://www.google.com/s2/favicons?domain=moviesjoy.bz&sz=128',
+      url: 'https://moviesjoy.bz/home',
+      enabled: true,
+    },
+    {
+      id: 'web-hdtoday',
+      name: 'HD Today — Movies & Shows',
+      group: 'Web Movies',
+      logo: 'https://www.google.com/s2/favicons?domain=hdtoday24.at&sz=128',
+      url: 'https://hdtoday24.at/home',
+      enabled: true,
+    },
+    {
+      id: 'web-azmovies',
+      name: 'AZMovies — Free HD',
+      group: 'Web Movies',
+      logo: 'https://www.google.com/s2/favicons?domain=azmovies.to&sz=128',
+      url: 'https://azmovies.to/',
       enabled: true,
     },
   ];
@@ -214,29 +233,30 @@ function loadState() {
     }
     const s = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
     s.sources = s.sources || [];
-    // Ensure built-in sources exist — old v2.0 state.json may not have verified
     const has = (id) => s.sources.some(x => x.id === id);
     for (const ds of def.sources) {
       if (!has(ds.id)) {
-        // add missing built-in source
         s.sources.unshift(ds);
       } else {
-        // update raw content for built-in raw sources so code improvements apply
         if (ds.type === 'raw') {
           const existing = s.sources.find(x => x.id === ds.id);
           if (existing) existing.raw = ds.raw;
         }
       }
     }
-    // movies: if file exists but empty, fill with default standard movies
-    if (!s.movies || !Array.isArray(s.movies) || s.movies.length === 0) {
-      s.movies = def.movies;
-    } else {
-      // ensure standard movies exist
-      for (const dm of def.movies) {
-        if (!s.movies.some(m => m.id === dm.id)) s.movies.push(dm);
-      }
+    // v6.5: Remove all old Demo/FTP movies, keep only Web Movies + custom user-added (not demo/ftp standard)
+    // User requested: ager sob remove kore new kore ftp site ta unique kore add korte
+    const OLD_IDS = ['mov-bbb','mov-sintel','mov-jelly','mov-ftp-standard'];
+    s.movies = s.movies || [];
+    // Filter out old demo/ftp standard
+    s.movies = s.movies.filter(m => !OLD_IDS.includes(m.id));
+    // Ensure new 7 web movies exist
+    for (const dm of def.movies) {
+      if (!s.movies.some(m => m.id === dm.id)) s.movies.push(dm);
     }
+    // If still empty, use default
+    if (!s.movies || s.movies.length === 0) s.movies = def.movies;
+
     applyEnvSources(s.sources);
     fs.writeFileSync(STATE_FILE, JSON.stringify(s, null, 2));
     return s;
@@ -1242,27 +1262,54 @@ const server = http.createServer(async (req, res) => {
 
     // ----- API: image proxy -----
     if (p === '/api/img' && req.method === 'GET') {
-      const target = u.searchParams.get('url');
-      if (!target || !validHttpUrl(target)) {
+      let target = u.searchParams.get('url');
+      if (!target) {
         res.writeHead(404, { 'content-type': 'image/svg+xml' });
         return res.end('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>');
       }
-      const up = await fetch(target, {
-        headers: { 'user-agent': FETCH_UA, accept: 'image/*' },
-        redirect: 'follow',
-      });
-      if (!up.ok || !up.body) {
-        res.writeHead(404, { 'content-type': 'image/svg+xml' });
-        return res.end('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>');
+      // Fix double-encoded or space-containing URLs from DiscoveryFTP
+      try {
+        target = target.trim();
+        // If target has spaces, encode them
+        if (target.includes(' ')) target = target.replace(/ /g, '%20');
+      } catch (e) {}
+      if (!validHttpUrl(target)) {
+        // Try to fix common issues: if url is like https://images1.discoveryftp.net/media/.../Cocktail%202/ -> it's a folder, not image
+        res.writeHead(404, { 'content-type': 'image/svg+xml', 'access-control-allow-origin': '*' });
+        return res.end('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="150"><rect width="100" height="150" fill="#1a2042"/><text x="50" y="75" text-anchor="middle" fill="#8a94b8" font-size="12">No Poster</text></svg>');
       }
-      const ct = up.headers.get('content-type');
-      res.writeHead(200, {
-        'content-type': ct || 'image/*',
-        'cache-control': 'public, max-age=86400',
-      });
-      const nodeStream = Readable.fromWeb(up.body);
-      nodeStream.on('error', () => res.destroy());
-      return nodeStream.pipe(res);
+      try {
+        const up = await fetch(target, {
+          headers: {
+            'user-agent': FETCH_UA,
+            'accept': 'image/*,*/*;q=0.8',
+            'referer': new URL(target).origin + '/',
+            'accept-language': 'en-US,en;q=0.9',
+          },
+          redirect: 'follow',
+        });
+        if (!up.ok || !up.body) {
+          res.writeHead(404, { 'content-type': 'image/svg+xml', 'access-control-allow-origin': '*' });
+          return res.end('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="150"><rect width="100" height="150" fill="#1a2042"/><text x="50" y="75" text-anchor="middle" fill="#8a94b8" font-size="10">No Image</text></svg>');
+        }
+        const ct = up.headers.get('content-type') || '';
+        // If it's HTML not image (discoveryftp folder page), return placeholder
+        if (ct.includes('text/html')) {
+          res.writeHead(404, { 'content-type': 'image/svg+xml', 'access-control-allow-origin': '*' });
+          return res.end('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="150"><rect width="100" height="150" fill="#1a2042"/><text x="50" y="75" text-anchor="middle" fill="#8a94b8" font-size="10">No Poster</text></svg>');
+        }
+        res.writeHead(200, {
+          'content-type': ct || 'image/*',
+          'cache-control': 'public, max-age=86400',
+          'access-control-allow-origin': '*',
+        });
+        const nodeStream = Readable.fromWeb(up.body);
+        nodeStream.on('error', () => res.destroy());
+        return nodeStream.pipe(res);
+      } catch (e) {
+        res.writeHead(404, { 'content-type': 'image/svg+xml', 'access-control-allow-origin': '*' });
+        return res.end('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="150"><rect width="100" height="150" fill="#1a2042"/></svg>');
+      }
     }
 
     // ----- static files -----
